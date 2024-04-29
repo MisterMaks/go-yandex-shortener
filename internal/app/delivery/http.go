@@ -1,0 +1,95 @@
+package delivery
+
+import (
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+
+	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
+	appUsecase "github.com/MisterMaks/go-yandex-shortener/internal/app/usecase"
+)
+
+const (
+	ContentTypeKey string = "Content-Type"
+	TextPlainKey   string = "text/plain"
+)
+
+type AppUsecaseInterface interface {
+	Create(s string) (*app.URL, error)
+	Get(id string) (*app.URL, error)
+}
+
+type AppHandler struct {
+	AppUsecase AppUsecaseInterface
+}
+
+func NewAppHandler(appUsecase AppUsecaseInterface) *AppHandler {
+	return &AppHandler{AppUsecase: appUsecase}
+}
+
+func (ah *AppHandler) Create(w http.ResponseWriter, r *http.Request) {
+	log.Println("INFO\tAppHandler.Create()")
+
+	if r.Method != http.MethodPost {
+		log.Printf("WARNING\tBad request method. Method: %s\n", r.Method)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	if r.Header.Get(ContentTypeKey) != TextPlainKey {
+		log.Printf("WARNING\tBad request header %s. %s: %s\n", ContentTypeKey, ContentTypeKey, r.Header.Get(ContentTypeKey))
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf("Header %s is not %s", ContentTypeKey, TextPlainKey)))
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("WARNING\tBad request. Request body: %s\n", r.Body)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	bodyStr := string(body)
+
+	url, err := ah.AppUsecase.Create(bodyStr)
+	if err != nil {
+		log.Printf("WARNING\tBad request. Request body string: %s. Error: %v\n", bodyStr, err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	shortURL := appUsecase.GenerateShortURL(r.Host, url.ID)
+	log.Printf("INFO\tURL ID: %s, URL: %s, short URL: %s\n", url.ID, url.URL, shortURL)
+
+	w.Write([]byte(shortURL))
+}
+
+func (ah *AppHandler) Get(w http.ResponseWriter, r *http.Request) {
+	log.Println("INFO\tAppHandler.Get()")
+
+	if r.Method != http.MethodGet {
+		log.Printf("WARNING\tBad request method. Method: %s\n", r.Method)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	id := r.PathValue("id")
+	if id == "" {
+		log.Printf("WARNING\tBad request. Request path id: %s\n", id)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	url, err := ah.AppUsecase.Get(id)
+	if err != nil {
+		log.Printf("WARNING\tBad request. Request path id: %s. Error: %v\n", id, err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("INFO\tURL ID: %s, URL: %s\n", url.ID, url.URL)
+
+	http.Redirect(w, r, url.URL, http.StatusMovedPermanently)
+}
