@@ -35,6 +35,10 @@ func generateID(length uint) string {
 	return string(b)
 }
 
+func generateShortURL(addr, id string) string {
+	return "http://" + addr + "/" + id
+}
+
 type AppRepoInterface interface {
 	Create(id, rawURL string) (*app.URL, error)
 	Get(id string) (*app.URL, error)
@@ -105,5 +109,5 @@ func (au *AppUsecase) Get(id string) (*app.URL, error) {
 }
 
 func (au *AppUsecase) GenerateShortURL(addr, id string) string {
-	return "http://" + addr + "/" + id
+	return generateShortURL(addr, id)
 }
