@@ -30,7 +30,8 @@ func main() {
 	appHandler := appDeliveryInternal.NewAppHandler(appUsecase)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc(`/`, appHandler.CreateOrGet)
+	mux.HandleFunc(`/`, appHandler.Create)
+	mux.HandleFunc(`/{id}`, appHandler.Get)
 
 	log.Printf("INFO\tServer running on %s ...\n", Addr)
 	err = http.ListenAndServe(Addr, mux)

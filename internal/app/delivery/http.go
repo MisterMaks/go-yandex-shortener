@@ -29,23 +29,6 @@ func NewAppHandler(appUsecase AppUsecaseInterface) *AppHandler {
 	return &AppHandler{AppUsecase: appUsecase}
 }
 
-func (ah *AppHandler) CreateOrGet(w http.ResponseWriter, r *http.Request) {
-	log.Println("INFO\tAppHandler.CreateOrGet()")
-
-	uri := r.RequestURI
-	uriS := strings.Split(uri, "/")
-	uriSLength := len(uriS)
-	switch {
-	case uriSLength == 2 && uriS[1] == "":
-		ah.Create(w, r)
-	case uriSLength == 2 && uriS[1] != "":
-		ah.Get(w, r)
-	default:
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-}
-
 func (ah *AppHandler) Create(w http.ResponseWriter, r *http.Request) {
 	log.Println("INFO\tAppHandler.Create()")
 
@@ -101,15 +84,7 @@ func (ah *AppHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uri := r.RequestURI
-	uriS := strings.Split(uri, "/")
-	if len(uriS) != 2 {
-		log.Printf("WARNING\tBad request URI. Request URI: %s\n", uri)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	id := uriS[1]
+	id := r.PathValue("id")
 	if id == "" {
 		log.Printf("WARNING\tBad request. Request path id: %s\n", id)
 		w.WriteHeader(http.StatusBadRequest)
