@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
-	appUsecase "github.com/MisterMaks/go-yandex-shortener/internal/app/usecase"
 )
 
 const (
@@ -19,6 +18,7 @@ const (
 type AppUsecaseInterface interface {
 	Create(s string) (*app.URL, error)
 	Get(id string) (*app.URL, error)
+	GenerateShortURL(addr, id string) string
 }
 
 type AppHandler struct {
@@ -85,7 +85,7 @@ func (ah *AppHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shortURL := appUsecase.GenerateShortURL(r.Host, url.ID)
+	shortURL := ah.AppUsecase.GenerateShortURL(r.Host, url.ID)
 	log.Printf("INFO\tURL ID: %s, URL: %s, short URL: %s\n", url.ID, url.URL, shortURL)
 
 	w.WriteHeader(http.StatusCreated)
