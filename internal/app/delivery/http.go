@@ -125,5 +125,5 @@ func (ah *AppHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("INFO\tURL ID: %s, URL: %s\n", url.ID, url.URL)
 
-	http.Redirect(w, r, url.URL, http.StatusMovedPermanently)
+	http.Redirect(w, r, url.URL, http.StatusTemporaryRedirect)
 }
