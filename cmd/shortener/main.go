@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	Addr                          = "127.0.0.1:8080"
+	Addr                          = ":8080"
 	CountRegenerationsForLengthID = 5
 	LengthID                      = 5
 	MaxLengthID                   = 20

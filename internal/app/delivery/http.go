@@ -55,7 +55,14 @@ func (ah *AppHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Header.Get(ContentTypeKey) != TextPlainKey {
+	isTextPlain := false
+	for _, value := range r.Header.Values(ContentTypeKey) {
+		if strings.Contains(value, TextPlainKey) {
+			isTextPlain = true
+			break
+		}
+	}
+	if !isTextPlain {
 		log.Printf("WARNING\tBad request header %s. %s: %s\n", ContentTypeKey, ContentTypeKey, r.Header.Get(ContentTypeKey))
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(fmt.Sprintf("Header %s is not %s", ContentTypeKey, TextPlainKey)))
@@ -81,6 +88,7 @@ func (ah *AppHandler) Create(w http.ResponseWriter, r *http.Request) {
 	shortURL := appUsecase.GenerateShortURL(r.Host, url.ID)
 	log.Printf("INFO\tURL ID: %s, URL: %s, short URL: %s\n", url.ID, url.URL, shortURL)
 
+	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(shortURL))
 }
 
