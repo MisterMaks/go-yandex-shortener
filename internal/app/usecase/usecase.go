@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	Symbols      = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	CountSymbols = len(Symbols)
+	Symbols      string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	CountSymbols int    = len(Symbols)
 )
 
 type AppRepoInterface interface {
@@ -105,5 +105,5 @@ func generateID(length uint) string {
 }
 
 func GenerateShortURL(addr, id string) string {
-	return addr + "/" + id
+	return "http://" + addr + "/" + id
 }

@@ -10,10 +10,10 @@ import (
 )
 
 const (
-	Addr                          = ":8080"
-	CountRegenerationsForLengthID = 5
-	LengthID                      = 5
-	MaxLengthID                   = 20
+	Addr                          string = ":8080"
+	CountRegenerationsForLengthID uint   = 5
+	LengthID                      uint   = 5
+	MaxLengthID                   uint   = 20
 )
 
 func main() {
