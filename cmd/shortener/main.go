@@ -17,7 +17,7 @@ const (
 )
 
 func main() {
-	appRepo := appRepoInternal.NewAppRepo()
+	appRepo := appRepoInternal.NewAppRepoInmem()
 	appUsecase, err := appUsecaseInternal.NewAppUsecase(
 		appRepo,
 		CountRegenerationsForLengthID,

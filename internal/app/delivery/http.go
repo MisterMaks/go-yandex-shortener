@@ -46,9 +46,9 @@ func (ah *AppHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !isTextPlain {
-		log.Printf("WARNING\tBad request header %s. %s: %s\n", ContentTypeKey, ContentTypeKey, r.Header.Get(ContentTypeKey))
+		log.Printf("WARNING\tBad request header '%s' is not contain '%s'. '%s': '%s'\n", ContentTypeKey, TextPlainKey, ContentTypeKey, r.Header.Get(ContentTypeKey))
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(fmt.Sprintf("Header %s is not %s", ContentTypeKey, TextPlainKey)))
+		w.Write([]byte(fmt.Sprintf("Header '%s' is not contain '%s'", ContentTypeKey, TextPlainKey)))
 		return
 	}
 
@@ -71,6 +71,7 @@ func (ah *AppHandler) Create(w http.ResponseWriter, r *http.Request) {
 	shortURL := ah.AppUsecase.GenerateShortURL(r.Host, url.ID)
 	log.Printf("INFO\tURL ID: %s, URL: %s, short URL: %s\n", url.ID, url.URL, shortURL)
 
+	w.Header().Add(ContentTypeKey, TextPlainKey)
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(shortURL))
 }

@@ -7,38 +7,46 @@ import (
 	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
 )
 
-type AppRepo struct {
-	URLs []*app.URL
+type AppRepoInmem struct {
+	urls []*app.URL
 	mu   *sync.RWMutex
 }
 
-func NewAppRepo() *AppRepo {
-	return &AppRepo{
-		URLs: []*app.URL{},
+func NewAppRepoInmem() *AppRepoInmem {
+	return &AppRepoInmem{
+		urls: []*app.URL{},
 		mu:   &sync.RWMutex{},
 	}
 }
 
-func (ar *AppRepo) Create(id, rawURL string) (*app.URL, error) {
-	ar.mu.RLock()
-	for _, url := range ar.URLs {
+func (ari *AppRepoInmem) Create(id, rawURL string) (*app.URL, error) {
+	if ari.mu == nil {
+		ari.mu = &sync.RWMutex{}
+	}
+
+	ari.mu.RLock()
+	for _, url := range ari.urls {
 		if rawURL == url.URL {
-			ar.mu.RUnlock()
+			ari.mu.RUnlock()
 			return url, nil
 		}
 	}
-	ar.mu.RUnlock()
-	ar.mu.Lock()
-	defer ar.mu.Unlock()
+	ari.mu.RUnlock()
+	ari.mu.Lock()
+	defer ari.mu.Unlock()
 	url := app.NewURL(id, rawURL)
-	ar.URLs = append(ar.URLs, url)
+	ari.urls = append(ari.urls, url)
 	return url, nil
 }
 
-func (ar *AppRepo) Get(id string) (*app.URL, error) {
-	ar.mu.RLock()
-	defer ar.mu.RUnlock()
-	for _, url := range ar.URLs {
+func (ari *AppRepoInmem) Get(id string) (*app.URL, error) {
+	if ari.mu == nil {
+		ari.mu = &sync.RWMutex{}
+	}
+
+	ari.mu.RLock()
+	defer ari.mu.RUnlock()
+	for _, url := range ari.urls {
 		if id == url.ID {
 			return url, nil
 		}
@@ -46,10 +54,14 @@ func (ar *AppRepo) Get(id string) (*app.URL, error) {
 	return nil, fmt.Errorf("url not found")
 }
 
-func (ar *AppRepo) IsExistID(id string) (bool, error) {
-	ar.mu.RLock()
-	defer ar.mu.RUnlock()
-	for _, url := range ar.URLs {
+func (ari *AppRepoInmem) IsExistID(id string) (bool, error) {
+	if ari.mu == nil {
+		ari.mu = &sync.RWMutex{}
+	}
+
+	ari.mu.RLock()
+	defer ari.mu.RUnlock()
+	for _, url := range ari.urls {
 		if id == url.ID {
 			return true, nil
 		}
