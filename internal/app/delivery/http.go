@@ -71,7 +71,7 @@ func (ah *AppHandler) GetOrCreateURL(w http.ResponseWriter, r *http.Request) {
 	shortURL := ah.AppUsecase.GenerateShortURL(r.Host, url.ID)
 	log.Printf("INFO\tURL ID: %s, URL: %s, short URL: %s\n", url.ID, url.URL, shortURL)
 
-	w.Header().Add(ContentTypeKey, TextPlainKey)
+	w.Header().Set(ContentTypeKey, TextPlainKey)
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(shortURL))
 }
