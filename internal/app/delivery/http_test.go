@@ -21,14 +21,14 @@ const (
 )
 
 var (
-	ErrTestInvalidURL = errors.New(TestInvalidURL)
+	ErrTestInvalidURL = errors.New("invalid url")
 	ErrTestIDNotFound = errors.New("ID not found")
 )
 
 type testAppUsecase struct{}
 
-func (tau *testAppUsecase) Create(s string) (*app.URL, error) {
-	switch s {
+func (tau *testAppUsecase) GetOrCreateURL(rawURL string) (*app.URL, error) {
+	switch rawURL {
 	case TestValidURL:
 		return &app.URL{
 			ID:  TestID,
@@ -40,7 +40,7 @@ func (tau *testAppUsecase) Create(s string) (*app.URL, error) {
 	return nil, ErrTestInvalidURL
 }
 
-func (tau *testAppUsecase) Get(id string) (*app.URL, error) {
+func (tau *testAppUsecase) GetURL(id string) (*app.URL, error) {
 	switch id {
 	case TestID:
 		return &app.URL{
@@ -55,7 +55,7 @@ func (tau *testAppUsecase) GenerateShortURL(addr, id string) string {
 	return "http://" + addr + "/" + id
 }
 
-func TestAppHandler_Create(t *testing.T) {
+func TestAppHandler_GetOrCreateURL(t *testing.T) {
 	type want struct {
 		code        int
 		response    string
@@ -67,6 +67,7 @@ func TestAppHandler_Create(t *testing.T) {
 		path        string
 		body        []byte
 	}
+
 	tests := []struct {
 		name    string
 		request request
@@ -129,6 +130,7 @@ func TestAppHandler_Create(t *testing.T) {
 			},
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tau := &testAppUsecase{}
@@ -140,7 +142,7 @@ func TestAppHandler_Create(t *testing.T) {
 			req.Header.Add(ContentTypeKey, tt.request.contentType)
 			w := httptest.NewRecorder()
 
-			appHandler.Create(w, req)
+			appHandler.GetOrCreateURL(w, req)
 
 			res := w.Result()
 
@@ -158,7 +160,7 @@ func TestAppHandler_Create(t *testing.T) {
 	}
 }
 
-func TestAppHandler_Get(t *testing.T) {
+func TestAppHandler_RedirectToURL(t *testing.T) {
 	type want struct {
 		code     int
 		response string
@@ -168,6 +170,7 @@ func TestAppHandler_Get(t *testing.T) {
 		path   string
 		id     string
 	}
+
 	tests := []struct {
 		name    string
 		request request
@@ -209,7 +212,20 @@ func TestAppHandler_Get(t *testing.T) {
 				response: "",
 			},
 		},
+		{
+			name: "invalid path",
+			request: request{
+				method: http.MethodGet,
+				path:   TestHost + "/",
+				id:     "",
+			},
+			want: want{
+				code:     http.StatusBadRequest,
+				response: "",
+			},
+		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tau := &testAppUsecase{}
@@ -219,7 +235,7 @@ func TestAppHandler_Get(t *testing.T) {
 			req.SetPathValue("id", tt.request.id)
 			w := httptest.NewRecorder()
 
-			appHandler.Get(w, req)
+			appHandler.RedirectToURL(w, req)
 
 			res := w.Result()
 
