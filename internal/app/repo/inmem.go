@@ -1,11 +1,13 @@
 package repo
 
 import (
-	"fmt"
+	"errors"
 	"sync"
 
 	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
 )
+
+var ErrURLNotFound = errors.New("url not found")
 
 type AppRepoInmem struct {
 	urls []*app.URL
@@ -19,7 +21,7 @@ func NewAppRepoInmem() *AppRepoInmem {
 	}
 }
 
-func (ari *AppRepoInmem) Create(id, rawURL string) (*app.URL, error) {
+func (ari *AppRepoInmem) GetOrCreateURL(id, rawURL string) (*app.URL, error) {
 	if ari.mu == nil {
 		ari.mu = &sync.RWMutex{}
 	}
@@ -34,12 +36,15 @@ func (ari *AppRepoInmem) Create(id, rawURL string) (*app.URL, error) {
 	ari.mu.RUnlock()
 	ari.mu.Lock()
 	defer ari.mu.Unlock()
-	url := app.NewURL(id, rawURL)
+	url, err := app.NewURL(id, rawURL)
+	if err != nil {
+		return nil, err
+	}
 	ari.urls = append(ari.urls, url)
 	return url, nil
 }
 
-func (ari *AppRepoInmem) Get(id string) (*app.URL, error) {
+func (ari *AppRepoInmem) GetURL(id string) (*app.URL, error) {
 	if ari.mu == nil {
 		ari.mu = &sync.RWMutex{}
 	}
@@ -51,10 +56,10 @@ func (ari *AppRepoInmem) Get(id string) (*app.URL, error) {
 			return url, nil
 		}
 	}
-	return nil, fmt.Errorf("url not found")
+	return nil, ErrURLNotFound
 }
 
-func (ari *AppRepoInmem) IsExistID(id string) (bool, error) {
+func (ari *AppRepoInmem) CheckIDExistence(id string) (bool, error) {
 	if ari.mu == nil {
 		ari.mu = &sync.RWMutex{}
 	}

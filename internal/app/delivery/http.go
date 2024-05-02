@@ -16,8 +16,8 @@ const (
 )
 
 type AppUsecaseInterface interface {
-	Create(s string) (*app.URL, error)
-	Get(id string) (*app.URL, error)
+	GetOrCreateURL(rawURL string) (*app.URL, error)
+	GetURL(id string) (*app.URL, error)
 	GenerateShortURL(addr, id string) string
 }
 
@@ -29,7 +29,7 @@ func NewAppHandler(appUsecase AppUsecaseInterface) *AppHandler {
 	return &AppHandler{AppUsecase: appUsecase}
 }
 
-func (ah *AppHandler) Create(w http.ResponseWriter, r *http.Request) {
+func (ah *AppHandler) GetOrCreateURL(w http.ResponseWriter, r *http.Request) {
 	log.Println("INFO\tAppHandler.Create()")
 
 	if r.Method != http.MethodPost {
@@ -61,7 +61,7 @@ func (ah *AppHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	bodyStr := string(body)
 
-	url, err := ah.AppUsecase.Create(bodyStr)
+	url, err := ah.AppUsecase.GetOrCreateURL(bodyStr)
 	if err != nil {
 		log.Printf("WARNING\tBad request. Request body string: %s. Error: %v\n", bodyStr, err)
 		w.WriteHeader(http.StatusBadRequest)
@@ -76,7 +76,7 @@ func (ah *AppHandler) Create(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(shortURL))
 }
 
-func (ah *AppHandler) Get(w http.ResponseWriter, r *http.Request) {
+func (ah *AppHandler) RedirectToURL(w http.ResponseWriter, r *http.Request) {
 	log.Println("INFO\tAppHandler.Get()")
 
 	if r.Method != http.MethodGet {
@@ -92,7 +92,7 @@ func (ah *AppHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	url, err := ah.AppUsecase.Get(id)
+	url, err := ah.AppUsecase.GetURL(id)
 	if err != nil {
 		log.Printf("WARNING\tBad request. Request path id: %s. Error: %v\n", id, err)
 		w.WriteHeader(http.StatusBadRequest)

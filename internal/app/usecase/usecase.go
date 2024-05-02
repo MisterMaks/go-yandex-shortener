@@ -1,11 +1,8 @@
 package usecase
 
 import (
-	"fmt"
+	"errors"
 	"math/rand"
-	"net/url"
-	"regexp"
-	"strings"
 
 	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
 )
@@ -15,24 +12,21 @@ const (
 	CountSymbols int    = len(Symbols)
 )
 
-func isURL(rawURL string) (bool, error) {
-	matched, err := regexp.MatchString(`^.+\..+$`, rawURL) // Проверка наличия домена первого уровня (.com, .ru, .org, ...)
-	if err != nil {
-		return false, err
-	}
-	if !matched {
-		return false, nil
-	}
-	_, err = url.Parse(rawURL)
-	return err == nil, nil
-}
+var (
+	ErrZeroLengthID            = errors.New("length ID == 0")
+	ErrZeroMaxLengthID         = errors.New("max length ID == 0")
+	ErrMaxLengthIDLessLengthID = errors.New("max length ID is less length ID")
+)
 
-func generateID(length uint) string {
+func generateID(length uint) (string, error) {
+	if length == 0 {
+		return "", ErrZeroLengthID
+	}
 	b := make([]byte, length)
 	for i := range b {
 		b[i] = Symbols[rand.Intn(CountSymbols)]
 	}
-	return string(b)
+	return string(b), nil
 }
 
 func generateShortURL(addr, id string) string {
@@ -40,9 +34,9 @@ func generateShortURL(addr, id string) string {
 }
 
 type AppRepoInterface interface {
-	Create(id, rawURL string) (*app.URL, error)
-	Get(id string) (*app.URL, error)
-	IsExistID(id string) (bool, error)
+	GetOrCreateURL(id, rawURL string) (*app.URL, error)
+	GetURL(id string) (*app.URL, error)
+	CheckIDExistence(id string) (bool, error)
 }
 
 type AppUsecase struct {
@@ -55,10 +49,13 @@ type AppUsecase struct {
 
 func NewAppUsecase(appRepo AppRepoInterface, countRegenerationsForLengthID, lengthID, maxLengthID uint) (*AppUsecase, error) {
 	if lengthID == 0 {
-		return nil, fmt.Errorf("lengthID == 0")
+		return nil, ErrZeroLengthID
 	}
 	if maxLengthID == 0 {
-		return nil, fmt.Errorf("maxLengthID == 0")
+		return nil, ErrZeroMaxLengthID
+	}
+	if maxLengthID < lengthID {
+		return nil, ErrMaxLengthIDLessLengthID
 	}
 	return &AppUsecase{
 		AppRepo:                       appRepo,
@@ -68,23 +65,20 @@ func NewAppUsecase(appRepo AppRepoInterface, countRegenerationsForLengthID, leng
 	}, nil
 }
 
-func (au *AppUsecase) Create(s string) (*app.URL, error) {
+func (au *AppUsecase) GetOrCreateURL(rawURL string) (*app.URL, error) {
 	if au.LengthID > au.MaxLengthID {
-		return nil, fmt.Errorf("length ID > max length ID")
+		return nil, ErrMaxLengthIDLessLengthID
 	}
 
-	checked, err := isURL(s)
-	if err != nil {
-		return nil, err
-	}
-	if !checked {
-		return nil, fmt.Errorf("not URL")
-	}
-
-	id := ""
+	var err error
+	var checked bool
+	var id string
 	for i := 0; i < int(au.CountRegenerationsForLengthID); i++ {
-		id = generateID(au.LengthID)
-		checked, err = au.AppRepo.IsExistID(id)
+		id, err = generateID(au.LengthID)
+		if err != nil {
+			return nil, err
+		}
+		checked, err = au.AppRepo.CheckIDExistence(id)
 		if err != nil || checked {
 			continue
 		}
@@ -93,19 +87,15 @@ func (au *AppUsecase) Create(s string) (*app.URL, error) {
 
 	if err != nil || checked {
 		au.LengthID++
-		au.Create(s)
+		au.GetOrCreateURL(rawURL)
 	}
 
-	s = strings.TrimPrefix(s, "http://")
-	s = strings.TrimPrefix(s, "https://")
-	s = "http://" + s
-
-	url, err := au.AppRepo.Create(id, s)
+	url, err := au.AppRepo.GetOrCreateURL(id, rawURL)
 	return url, err
 }
 
-func (au *AppUsecase) Get(id string) (*app.URL, error) {
-	return au.AppRepo.Get(id)
+func (au *AppUsecase) GetURL(id string) (*app.URL, error) {
+	return au.AppRepo.GetURL(id)
 }
 
 func (au *AppUsecase) GenerateShortURL(addr, id string) string {
