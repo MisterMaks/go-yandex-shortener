@@ -34,8 +34,6 @@ func (tau *testAppUsecase) GetOrCreateURL(rawURL string) (*app.URL, error) {
 			ID:  TestID,
 			URL: TestValidURL,
 		}, nil
-	case TestInvalidURL:
-		return nil, ErrTestInvalidURL
 	}
 	return nil, ErrTestInvalidURL
 }

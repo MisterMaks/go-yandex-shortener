@@ -15,7 +15,7 @@ const (
 )
 
 var (
-	ErrTestForMockedFuncs = errors.New("error for mocked funcs")
+	ErrTestIDNotFound = errors.New("ID not found")
 )
 
 func Test_generateID(t *testing.T) {
@@ -115,7 +115,7 @@ func (tar *testAppRepo) GetURL(id string) (*app.URL, error) {
 			URL: TestURL,
 		}, nil
 	}
-	return nil, ErrTestForMockedFuncs
+	return nil, ErrTestIDNotFound
 }
 
 func (tar *testAppRepo) CheckIDExistence(id string) (bool, error) {
@@ -308,7 +308,7 @@ func TestAppUsecase_GetURL(t *testing.T) {
 		want   want
 	}{
 		{
-			name: "valid id",
+			name: "existing ID",
 			fields: fields{
 				countRegenerationsForLengthID: 1,
 				lengthID:                      1,
@@ -326,18 +326,18 @@ func TestAppUsecase_GetURL(t *testing.T) {
 			},
 		},
 		{
-			name: "invalid id",
+			name: "non-existent ID",
 			fields: fields{
 				countRegenerationsForLengthID: 1,
 				lengthID:                      1,
 				maxLengthID:                   1,
 			},
 			args: args{
-				id: "invalid id",
+				id: "non-existent ID",
 			},
 			want: want{
 				url: nil,
-				err: ErrTestForMockedFuncs,
+				err: ErrTestIDNotFound,
 			},
 		},
 	}
