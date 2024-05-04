@@ -96,9 +96,7 @@ func TestAppHandler_GetOrCreateURL(t *testing.T) {
 				body:        []byte(TestInvalidURL),
 			},
 			want: want{
-				statusCode:  http.StatusBadRequest,
-				contentType: "",
-				response:    "",
+				statusCode: http.StatusBadRequest,
 			},
 		},
 		{
@@ -110,9 +108,7 @@ func TestAppHandler_GetOrCreateURL(t *testing.T) {
 				body:        []byte(TestValidURL),
 			},
 			want: want{
-				statusCode:  http.StatusMethodNotAllowed,
-				contentType: "",
-				response:    "",
+				statusCode: http.StatusMethodNotAllowed,
 			},
 		},
 		{
@@ -124,9 +120,7 @@ func TestAppHandler_GetOrCreateURL(t *testing.T) {
 				body:        []byte(TestValidURL),
 			},
 			want: want{
-				statusCode:  http.StatusBadRequest,
-				contentType: "",
-				response:    "",
+				statusCode: http.StatusBadRequest,
 			},
 		},
 	}
@@ -197,7 +191,6 @@ func TestAppHandler_RedirectToURL(t *testing.T) {
 			},
 			want: want{
 				statusCode: http.StatusBadRequest,
-				response:   "",
 			},
 		},
 		{
@@ -209,7 +202,6 @@ func TestAppHandler_RedirectToURL(t *testing.T) {
 			},
 			want: want{
 				statusCode: http.StatusMethodNotAllowed,
-				response:   "",
 			},
 		},
 		{
@@ -221,7 +213,6 @@ func TestAppHandler_RedirectToURL(t *testing.T) {
 			},
 			want: want{
 				statusCode: http.StatusBadRequest,
-				response:   "",
 			},
 		},
 	}
