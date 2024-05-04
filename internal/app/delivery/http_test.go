@@ -2,6 +2,7 @@ package delivery
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
+	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -54,16 +56,16 @@ func (tau *testAppUsecase) GenerateShortURL(addr, id string) string {
 }
 
 func TestAppHandler_GetOrCreateURL(t *testing.T) {
-	type want struct {
-		code        int
-		response    string
-		contentType string
-	}
 	type request struct {
 		method      string
 		contentType string
-		path        string
+		url         string
 		body        []byte
+	}
+	type want struct {
+		statusCode  int
+		contentType string
+		response    string
 	}
 
 	tests := []struct {
@@ -76,11 +78,11 @@ func TestAppHandler_GetOrCreateURL(t *testing.T) {
 			request: request{
 				method:      http.MethodPost,
 				contentType: TextPlainKey,
-				path:        TestHost + "/",
+				url:         TestHost + "/",
 				body:        []byte(TestValidURL),
 			},
 			want: want{
-				code:        http.StatusCreated,
+				statusCode:  http.StatusCreated,
 				response:    TestHost + "/" + TestID,
 				contentType: TextPlainKey,
 			},
@@ -90,13 +92,13 @@ func TestAppHandler_GetOrCreateURL(t *testing.T) {
 			request: request{
 				method:      http.MethodPost,
 				contentType: TextPlainKey,
-				path:        TestHost + "/",
+				url:         TestHost + "/",
 				body:        []byte(TestInvalidURL),
 			},
 			want: want{
-				code:        http.StatusBadRequest,
-				response:    "",
+				statusCode:  http.StatusBadRequest,
 				contentType: "",
+				response:    "",
 			},
 		},
 		{
@@ -104,13 +106,13 @@ func TestAppHandler_GetOrCreateURL(t *testing.T) {
 			request: request{
 				method:      http.MethodGet,
 				contentType: TextPlainKey,
-				path:        TestHost + "/",
+				url:         TestHost + "/",
 				body:        []byte(TestValidURL),
 			},
 			want: want{
-				code:        http.StatusMethodNotAllowed,
-				response:    "",
+				statusCode:  http.StatusMethodNotAllowed,
 				contentType: "",
+				response:    "",
 			},
 		},
 		{
@@ -118,13 +120,13 @@ func TestAppHandler_GetOrCreateURL(t *testing.T) {
 			request: request{
 				method:      http.MethodPost,
 				contentType: "invalid Header Content-Type",
-				path:        TestHost + "/",
+				url:         TestHost + "/",
 				body:        []byte(TestValidURL),
 			},
 			want: want{
-				code:        http.StatusBadRequest,
-				response:    "",
+				statusCode:  http.StatusBadRequest,
 				contentType: "",
+				response:    "",
 			},
 		},
 	}
@@ -136,7 +138,7 @@ func TestAppHandler_GetOrCreateURL(t *testing.T) {
 
 			bodyReader := bytes.NewReader(tt.request.body)
 
-			req := httptest.NewRequest(tt.request.method, tt.request.path, bodyReader)
+			req := httptest.NewRequest(tt.request.method, tt.request.url, bodyReader)
 			req.Header.Add(ContentTypeKey, tt.request.contentType)
 			w := httptest.NewRecorder()
 
@@ -144,7 +146,7 @@ func TestAppHandler_GetOrCreateURL(t *testing.T) {
 
 			res := w.Result()
 
-			assert.Equal(t, tt.want.code, res.StatusCode)
+			assert.Equal(t, tt.want.statusCode, res.StatusCode)
 			switch res.StatusCode {
 			case http.StatusCreated:
 				assert.Contains(t, res.Header.Values(ContentTypeKey), tt.want.contentType)
@@ -159,14 +161,14 @@ func TestAppHandler_GetOrCreateURL(t *testing.T) {
 }
 
 func TestAppHandler_RedirectToURL(t *testing.T) {
-	type want struct {
-		code     int
-		response string
-	}
 	type request struct {
 		method string
-		path   string
+		url    string
 		id     string
+	}
+	type want struct {
+		statusCode int
+		response   string
 	}
 
 	tests := []struct {
@@ -178,48 +180,48 @@ func TestAppHandler_RedirectToURL(t *testing.T) {
 			name: "valid ID",
 			request: request{
 				method: http.MethodGet,
-				path:   TestHost + "/",
+				url:    TestHost + "/",
 				id:     TestID,
 			},
 			want: want{
-				code:     http.StatusTemporaryRedirect,
-				response: "<a href=\"/" + TestValidURL + "\">Temporary Redirect</a>.\n\n",
+				statusCode: http.StatusTemporaryRedirect,
+				response:   "<a href=\"/" + TestValidURL + "\">Temporary Redirect</a>.\n\n",
 			},
 		},
 		{
 			name: "invalid ID",
 			request: request{
 				method: http.MethodGet,
-				path:   TestHost + "/",
+				url:    TestHost + "/",
 				id:     "2",
 			},
 			want: want{
-				code:     http.StatusBadRequest,
-				response: "",
+				statusCode: http.StatusBadRequest,
+				response:   "",
 			},
 		},
 		{
 			name: "invalid method",
 			request: request{
 				method: http.MethodPost,
-				path:   TestHost + "/",
+				url:    TestHost + "/",
 				id:     TestID,
 			},
 			want: want{
-				code:     http.StatusMethodNotAllowed,
-				response: "",
+				statusCode: http.StatusMethodNotAllowed,
+				response:   "",
 			},
 		},
 		{
-			name: "invalid path",
+			name: "invalid url",
 			request: request{
 				method: http.MethodGet,
-				path:   TestHost + "/",
+				url:    TestHost + "/",
 				id:     "",
 			},
 			want: want{
-				code:     http.StatusBadRequest,
-				response: "",
+				statusCode: http.StatusBadRequest,
+				response:   "",
 			},
 		},
 	}
@@ -229,15 +231,20 @@ func TestAppHandler_RedirectToURL(t *testing.T) {
 			tau := &testAppUsecase{}
 			appHandler := NewAppHandler(tau)
 
-			req := httptest.NewRequest(tt.request.method, tt.request.path, nil)
-			req.SetPathValue("id", tt.request.id)
+			req := httptest.NewRequest(tt.request.method, tt.request.url+tt.request.id, nil)
+
+			rctx := chi.NewRouteContext()
+			rctx.URLParams.Add("id", tt.request.id)
+
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
 			w := httptest.NewRecorder()
 
 			appHandler.RedirectToURL(w, req)
 
 			res := w.Result()
 
-			assert.Equal(t, tt.want.code, res.StatusCode)
+			assert.Equal(t, tt.want.statusCode, res.StatusCode)
 			switch res.StatusCode {
 			case http.StatusTemporaryRedirect:
 				defer res.Body.Close()

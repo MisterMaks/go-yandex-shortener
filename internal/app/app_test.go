@@ -15,6 +15,7 @@ func TestNewURL(t *testing.T) {
 		url     *URL
 		wantErr bool
 	}
+
 	tests := []struct {
 		name string
 		args args
@@ -43,6 +44,7 @@ func TestNewURL(t *testing.T) {
 			},
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			url, err := NewURL(tt.args.id, tt.args.rawURL)

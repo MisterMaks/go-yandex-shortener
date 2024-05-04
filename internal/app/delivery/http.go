@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
+	"github.com/go-chi/chi/v5"
 )
 
 const (
@@ -85,7 +86,7 @@ func (ah *AppHandler) RedirectToURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := r.PathValue("id")
+	id := chi.URLParam(r, "id")
 	if id == "" {
 		log.Printf("WARNING\tBad request. Request path id: %s\n", id)
 		w.WriteHeader(http.StatusBadRequest)
