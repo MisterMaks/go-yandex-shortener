@@ -61,20 +61,11 @@ func testRequest(
 	ts *httptest.Server,
 	method, path, contentType string,
 	body []byte,
-) (*http.Response, string) {
+) (*http.Response, error) {
 	req, err := http.NewRequest(method, ts.URL+path, bytes.NewReader(body))
 	require.NoError(t, err)
-
 	req.Header.Set(ContentTypeKey, contentType)
-
-	resp, err := ts.Client().Do(req)
-	require.NoError(t, err)
-
-	respBody, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	require.NoError(t, err)
-
-	return resp, string(respBody)
+	return ts.Client().Do(req)
 }
 
 func TestRouter(t *testing.T) {
@@ -188,19 +179,26 @@ func TestRouter(t *testing.T) {
 	}
 
 	for _, tt := range testTable {
-		resp, get := testRequest(
+		resp, err := testRequest(
 			t,
 			ts,
 			tt.request.method, tt.request.path, tt.request.contentType,
 			tt.request.body,
 		)
+		require.NoError(t, err)
+
+		respBody, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		require.NoError(t, err)
+		respBodyStr := string(respBody)
+
 		assert.Equal(t, tt.want.statusCode, resp.StatusCode)
 		if resp.StatusCode == http.StatusCreated {
 			assert.Contains(t, resp.Header.Values(ContentTypeKey), tt.want.contentType)
-			assert.Equal(t, tt.want.response, get)
+			assert.Equal(t, tt.want.response, respBodyStr)
 		}
 		if resp.StatusCode == http.StatusTemporaryRedirect {
-			assert.Equal(t, tt.want.response, get)
+			assert.Equal(t, tt.want.response, respBodyStr)
 		}
 	}
 }
