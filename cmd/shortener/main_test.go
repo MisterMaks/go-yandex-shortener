@@ -52,8 +52,8 @@ func (tau *testAppUsecase) GetURL(id string) (*app.URL, error) {
 	return nil, ErrTestIDNotFound
 }
 
-func (tau *testAppUsecase) GenerateShortURL(addr, id string) string {
-	return "http://" + addr + "/" + id
+func (tau *testAppUsecase) GenerateShortURL(id string) string {
+	return id
 }
 
 func testRequest(
@@ -71,7 +71,7 @@ func testRequest(
 func TestRouter(t *testing.T) {
 	tau := &testAppUsecase{}
 	appHandler := appDeliveryInternal.NewAppHandler(tau)
-	ts := httptest.NewServer(ShortenerRouter(appHandler))
+	ts := httptest.NewServer(shortenerRouter(appHandler))
 	defer ts.Close()
 	client := ts.Client()
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
@@ -106,7 +106,7 @@ func TestRouter(t *testing.T) {
 			want: want{
 				statusCode:  http.StatusCreated,
 				contentType: TextPlainKey,
-				response:    ts.URL + "/" + TestID,
+				response:    TestID,
 			},
 		},
 		{

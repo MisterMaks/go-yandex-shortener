@@ -3,6 +3,7 @@ package usecase
 import (
 	"errors"
 	"math/rand"
+	"net/url"
 
 	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
 )
@@ -16,6 +17,7 @@ var (
 	ErrZeroLengthID            = errors.New("length ID == 0")
 	ErrZeroMaxLengthID         = errors.New("max length ID == 0")
 	ErrMaxLengthIDLessLengthID = errors.New("max length ID is less length ID")
+	ErrInvalidResultAddrPrefix = errors.New("invalid prefix of the resulting address")
 )
 
 func generateID(length uint) (string, error) {
@@ -29,10 +31,6 @@ func generateID(length uint) (string, error) {
 	return string(b), nil
 }
 
-func generateShortURL(addr, id string) string {
-	return "http://" + addr + "/" + id
-}
-
 type AppRepoInterface interface {
 	GetOrCreateURL(id, rawURL string) (*app.URL, error)
 	GetURL(id string) (*app.URL, error)
@@ -42,12 +40,13 @@ type AppRepoInterface interface {
 type AppUsecase struct {
 	AppRepo AppRepoInterface
 
+	ResultAddrPrefix              string
 	CountRegenerationsForLengthID uint
 	LengthID                      uint
 	MaxLengthID                   uint
 }
 
-func NewAppUsecase(appRepo AppRepoInterface, countRegenerationsForLengthID, lengthID, maxLengthID uint) (*AppUsecase, error) {
+func NewAppUsecase(appRepo AppRepoInterface, resultAddrPrefix string, countRegenerationsForLengthID, lengthID, maxLengthID uint) (*AppUsecase, error) {
 	if lengthID == 0 {
 		return nil, ErrZeroLengthID
 	}
@@ -57,8 +56,16 @@ func NewAppUsecase(appRepo AppRepoInterface, countRegenerationsForLengthID, leng
 	if maxLengthID < lengthID {
 		return nil, ErrMaxLengthIDLessLengthID
 	}
+	u, err := url.ParseRequestURI(resultAddrPrefix)
+	if err != nil {
+		return nil, err
+	}
+	if u.Path == "" {
+		return nil, ErrInvalidResultAddrPrefix
+	}
 	return &AppUsecase{
 		AppRepo:                       appRepo,
+		ResultAddrPrefix:              resultAddrPrefix,
 		CountRegenerationsForLengthID: countRegenerationsForLengthID,
 		LengthID:                      lengthID,
 		MaxLengthID:                   maxLengthID,
@@ -98,6 +105,6 @@ func (au *AppUsecase) GetURL(id string) (*app.URL, error) {
 	return au.AppRepo.GetURL(id)
 }
 
-func (au *AppUsecase) GenerateShortURL(addr, id string) string {
-	return generateShortURL(addr, id)
+func (au *AppUsecase) GenerateShortURL(id string) string {
+	return au.ResultAddrPrefix + id
 }

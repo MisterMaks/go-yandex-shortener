@@ -19,7 +19,7 @@ const (
 type AppUsecaseInterface interface {
 	GetOrCreateURL(rawURL string) (*app.URL, error)
 	GetURL(id string) (*app.URL, error)
-	GenerateShortURL(addr, id string) string
+	GenerateShortURL(id string) string
 }
 
 type AppHandler struct {
@@ -69,7 +69,7 @@ func (ah *AppHandler) GetOrCreateURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shortURL := ah.AppUsecase.GenerateShortURL(r.Host, url.ID)
+	shortURL := ah.AppUsecase.GenerateShortURL(url.ID)
 	log.Printf("INFO\tURL ID: %s, URL: %s, short URL: %s\n", url.ID, url.URL, shortURL)
 
 	w.Header().Set(ContentTypeKey, TextPlainKey)

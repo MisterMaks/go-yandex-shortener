@@ -13,6 +13,7 @@ import (
 
 const (
 	Addr                          string = ":8080"
+	ResultAddrPrefix              string = "http://localhost:8080/"
 	CountRegenerationsForLengthID uint   = 5
 	LengthID                      uint   = 5
 	MaxLengthID                   uint   = 20
@@ -23,7 +24,7 @@ type AppHandlerInterface interface {
 	RedirectToURL(w http.ResponseWriter, r *http.Request)
 }
 
-func ShortenerRouter(appHandler AppHandlerInterface) chi.Router {
+func shortenerRouter(appHandler AppHandlerInterface) chi.Router {
 	r := chi.NewRouter()
 	r.Route(`/`, func(r chi.Router) {
 		r.Post(`/`, appHandler.GetOrCreateURL)
@@ -33,9 +34,16 @@ func ShortenerRouter(appHandler AppHandlerInterface) chi.Router {
 }
 
 func main() {
+	config := &Config{}
+	err := config.parseFlags()
+	if err != nil {
+		log.Fatalln("CRITICAL\tFailed to parse flags. Error:", err)
+	}
+
 	appRepo := appRepoInternal.NewAppRepoInmem()
 	appUsecase, err := appUsecaseInternal.NewAppUsecase(
 		appRepo,
+		config.ResultAddrPrefix,
 		CountRegenerationsForLengthID,
 		LengthID,
 		MaxLengthID,
@@ -46,10 +54,10 @@ func main() {
 
 	appHandler := appDeliveryInternal.NewAppHandler(appUsecase)
 
-	r := ShortenerRouter(appHandler)
+	r := shortenerRouter(appHandler)
 
-	log.Printf("INFO\tServer running on %s ...\n", Addr)
-	err = http.ListenAndServe(Addr, r)
+	log.Printf("INFO\tServer running on %s ...\n", config.Addr)
+	err = http.ListenAndServe(config.Addr, r)
 	if err != nil {
 		log.Fatalln("CRITICAL\tFailed to start server. Error:", err)
 	}

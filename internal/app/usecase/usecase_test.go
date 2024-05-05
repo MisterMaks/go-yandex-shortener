@@ -64,42 +64,6 @@ func Test_generateID(t *testing.T) {
 	}
 }
 
-func Test_generateShortURL(t *testing.T) {
-	type args struct {
-		addr string
-		id   string
-	}
-
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		{
-			name: "test 1",
-			args: args{
-				addr: TestAddr,
-				id:   TestURLID,
-			},
-			want: "http://localhost:8080/1",
-		},
-		{
-			name: "test 2",
-			args: args{
-				addr: "example.com",
-				id:   "2",
-			},
-			want: "http://example.com/2",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, generateShortURL(tt.args.addr, tt.args.id))
-		})
-	}
-}
-
 type testAppRepo struct{}
 
 func (tar *testAppRepo) GetOrCreateURL(id, rawURL string) (*app.URL, error) {
@@ -124,13 +88,14 @@ func (tar *testAppRepo) CheckIDExistence(id string) (bool, error) {
 
 func TestNewAppUsecase(t *testing.T) {
 	type args struct {
+		resultAddrPrefix              string
 		countRegenerationsForLengthID uint
 		lengthID                      uint
 		maxLengthID                   uint
 	}
 	type want struct {
 		appUsecase *AppUsecase
-		err        error
+		wantErr    bool
 	}
 
 	tests := []struct {
@@ -141,6 +106,7 @@ func TestNewAppUsecase(t *testing.T) {
 		{
 			name: "valid data",
 			args: args{
+				resultAddrPrefix:              "http://example.com/",
 				countRegenerationsForLengthID: 1,
 				lengthID:                      1,
 				maxLengthID:                   1,
@@ -148,47 +114,77 @@ func TestNewAppUsecase(t *testing.T) {
 			want: want{
 				appUsecase: &AppUsecase{
 					AppRepo:                       &testAppRepo{},
+					ResultAddrPrefix:              "http://example.com/",
 					CountRegenerationsForLengthID: 1,
 					LengthID:                      1,
 					MaxLengthID:                   1,
 				},
-				err: nil,
+				wantErr: false,
 			},
 		},
 		{
 			name: "invalid length ID",
 			args: args{
+				resultAddrPrefix:              "http://example.com/",
 				countRegenerationsForLengthID: 1,
 				lengthID:                      0,
 				maxLengthID:                   1,
 			},
 			want: want{
 				appUsecase: nil,
-				err:        ErrZeroLengthID,
+				wantErr:    true,
 			},
 		},
 		{
 			name: "invalid max length ID",
 			args: args{
+				resultAddrPrefix:              "http://example.com/",
 				countRegenerationsForLengthID: 1,
 				lengthID:                      1,
 				maxLengthID:                   0,
 			},
 			want: want{
 				appUsecase: nil,
-				err:        ErrZeroMaxLengthID,
+				wantErr:    true,
 			},
 		},
 		{
 			name: "invalid max length ID with length ID",
 			args: args{
+				resultAddrPrefix:              "http://example.com/",
 				countRegenerationsForLengthID: 1,
 				lengthID:                      3,
 				maxLengthID:                   2,
 			},
 			want: want{
 				appUsecase: nil,
-				err:        ErrMaxLengthIDLessLengthID,
+				wantErr:    true,
+			},
+		},
+		{
+			name: "invalid prefix of the resulting address",
+			args: args{
+				resultAddrPrefix:              "invalid prefix of the resulting address",
+				countRegenerationsForLengthID: 1,
+				lengthID:                      1,
+				maxLengthID:                   1,
+			},
+			want: want{
+				appUsecase: nil,
+				wantErr:    true,
+			},
+		},
+		{
+			name: "invalid prefix of the resulting address 2",
+			args: args{
+				resultAddrPrefix:              "http://example.com",
+				countRegenerationsForLengthID: 1,
+				lengthID:                      1,
+				maxLengthID:                   1,
+			},
+			want: want{
+				appUsecase: nil,
+				wantErr:    true,
 			},
 		},
 	}
@@ -196,8 +192,12 @@ func TestNewAppUsecase(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tar := &testAppRepo{}
-			appUsecase, err := NewAppUsecase(tar, tt.args.countRegenerationsForLengthID, tt.args.lengthID, tt.args.maxLengthID)
-			assert.ErrorIs(t, err, tt.want.err)
+			appUsecase, err := NewAppUsecase(tar, tt.args.resultAddrPrefix, tt.args.countRegenerationsForLengthID, tt.args.lengthID, tt.args.maxLengthID)
+			if tt.want.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 			assert.Equal(t, tt.want.appUsecase, appUsecase)
 		})
 	}
@@ -387,7 +387,7 @@ func TestAppUsecase_GenerateShortURL(t *testing.T) {
 				addr: TestAddr,
 				id:   TestURLID,
 			},
-			want: "http://localhost:8080/1",
+			want: "http://example.com/1",
 		},
 		{
 			name: "test 2",
@@ -410,11 +410,12 @@ func TestAppUsecase_GenerateShortURL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			au := &AppUsecase{
 				AppRepo:                       tar,
+				ResultAddrPrefix:              "http://example.com/",
 				CountRegenerationsForLengthID: tt.fields.countRegenerationsForLengthID,
 				LengthID:                      tt.fields.lengthID,
 				MaxLengthID:                   tt.fields.maxLengthID,
 			}
-			shortURL := au.GenerateShortURL(tt.args.addr, tt.args.id)
+			shortURL := au.GenerateShortURL(tt.args.id)
 			assert.Equal(t, tt.want, shortURL)
 		})
 	}

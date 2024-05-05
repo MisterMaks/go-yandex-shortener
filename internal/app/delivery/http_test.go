@@ -51,8 +51,8 @@ func (tau *testAppUsecase) GetURL(id string) (*app.URL, error) {
 	return nil, ErrTestIDNotFound
 }
 
-func (tau *testAppUsecase) GenerateShortURL(addr, id string) string {
-	return "http://" + addr + "/" + id
+func (tau *testAppUsecase) GenerateShortURL(id string) string {
+	return id
 }
 
 func TestAppHandler_GetOrCreateURL(t *testing.T) {
@@ -83,7 +83,7 @@ func TestAppHandler_GetOrCreateURL(t *testing.T) {
 			},
 			want: want{
 				statusCode:  http.StatusCreated,
-				response:    TestHost + "/" + TestID,
+				response:    TestID,
 				contentType: TextPlainKey,
 			},
 		},
