@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	Addr                          string = ":8080"
+	Addr                          string = "localhost:8080"
 	ResultAddrPrefix              string = "http://localhost:8080/"
 	CountRegenerationsForLengthID uint   = 5
 	LengthID                      uint   = 5
