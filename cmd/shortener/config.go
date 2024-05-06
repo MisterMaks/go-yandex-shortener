@@ -16,7 +16,7 @@ var (
 type Config struct {
 	// Адрес запуска HTTP-сервера. Пример: localhost:8080
 	ServerAddress string `env:"SERVER_ADDRESS"`
-	// Базовый адрес результирующего сокращённого URL.
+	// Базовый адрес результирующего сокращённого URL
 	// Требования:
 	//     - Должен быть указан протокол: http/http
 	//     - Адрес должен быть равен адресу в поле ServerAddress

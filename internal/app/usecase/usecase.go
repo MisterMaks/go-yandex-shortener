@@ -17,7 +17,7 @@ var (
 	ErrZeroLengthID            = errors.New("length ID == 0")
 	ErrZeroMaxLengthID         = errors.New("max length ID == 0")
 	ErrMaxLengthIDLessLengthID = errors.New("max length ID is less length ID")
-	ErrInvalidResultAddrPrefix = errors.New("invalid prefix of the resulting address")
+	ErrInvalidBaseURL          = errors.New("invalid Base URL")
 )
 
 func generateID(length uint) (string, error) {
@@ -40,13 +40,13 @@ type AppRepoInterface interface {
 type AppUsecase struct {
 	AppRepo AppRepoInterface
 
-	ResultAddrPrefix              string
+	BaseURL                       string
 	CountRegenerationsForLengthID uint
 	LengthID                      uint
 	MaxLengthID                   uint
 }
 
-func NewAppUsecase(appRepo AppRepoInterface, resultAddrPrefix string, countRegenerationsForLengthID, lengthID, maxLengthID uint) (*AppUsecase, error) {
+func NewAppUsecase(appRepo AppRepoInterface, baseURL string, countRegenerationsForLengthID, lengthID, maxLengthID uint) (*AppUsecase, error) {
 	if lengthID == 0 {
 		return nil, ErrZeroLengthID
 	}
@@ -56,16 +56,16 @@ func NewAppUsecase(appRepo AppRepoInterface, resultAddrPrefix string, countRegen
 	if maxLengthID < lengthID {
 		return nil, ErrMaxLengthIDLessLengthID
 	}
-	u, err := url.ParseRequestURI(resultAddrPrefix)
+	u, err := url.ParseRequestURI(baseURL)
 	if err != nil {
 		return nil, err
 	}
 	if u.Path == "" {
-		return nil, ErrInvalidResultAddrPrefix
+		return nil, ErrInvalidBaseURL
 	}
 	return &AppUsecase{
 		AppRepo:                       appRepo,
-		ResultAddrPrefix:              resultAddrPrefix,
+		BaseURL:                       baseURL,
 		CountRegenerationsForLengthID: countRegenerationsForLengthID,
 		LengthID:                      lengthID,
 		MaxLengthID:                   maxLengthID,
@@ -106,5 +106,5 @@ func (au *AppUsecase) GetURL(id string) (*app.URL, error) {
 }
 
 func (au *AppUsecase) GenerateShortURL(id string) string {
-	return au.ResultAddrPrefix + id
+	return au.BaseURL + id
 }

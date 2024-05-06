@@ -114,7 +114,7 @@ func TestNewAppUsecase(t *testing.T) {
 			want: want{
 				appUsecase: &AppUsecase{
 					AppRepo:                       &testAppRepo{},
-					ResultAddrPrefix:              "http://example.com/",
+					BaseURL:                       "http://example.com/",
 					CountRegenerationsForLengthID: 1,
 					LengthID:                      1,
 					MaxLengthID:                   1,
@@ -410,7 +410,7 @@ func TestAppUsecase_GenerateShortURL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			au := &AppUsecase{
 				AppRepo:                       tar,
-				ResultAddrPrefix:              "http://example.com/",
+				BaseURL:                       "http://example.com/",
 				CountRegenerationsForLengthID: tt.fields.countRegenerationsForLengthID,
 				LengthID:                      tt.fields.lengthID,
 				MaxLengthID:                   tt.fields.maxLengthID,
