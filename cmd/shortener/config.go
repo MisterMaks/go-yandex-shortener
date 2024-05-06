@@ -40,6 +40,7 @@ func (c *Config) parseFlags() error {
 			}
 			if !strings.HasSuffix(c.ResultAddrPrefix, "/") {
 				c.ResultAddrPrefix += "/"
+				c.ResultPathPrefix = "/"
 			}
 		}
 	case c.ResultAddrPrefix != ResultAddrPrefix: // ввели -b
