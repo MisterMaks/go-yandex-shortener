@@ -30,8 +30,8 @@ type Config struct {
 }
 
 func (c *Config) parseFlags() error {
-	flag.StringVar(&c.Addr, "a", Addr, "Server address")
-	flag.StringVar(&c.ResultAddrPrefix, "b", ResultAddrPrefix, "Prefix of the resulting address")
+	flag.StringVar(&c.Addr, "a", "", "Server address")
+	flag.StringVar(&c.ResultAddrPrefix, "b", "", "Prefix of the resulting address")
 	flag.Parse()
 
 	if !strings.HasSuffix(c.ResultAddrPrefix, "/") {
@@ -40,8 +40,8 @@ func (c *Config) parseFlags() error {
 	c.ResultPathPrefix = "/"
 
 	switch {
-	case c.Addr != Addr: // ввели -a
-		if c.ResultAddrPrefix != ResultAddrPrefix { // ввели -a и ввели -b
+	case c.Addr != "": // ввели -a
+		if c.ResultAddrPrefix != "" { // ввели -a и ввели -b
 			u, err := url.ParseRequestURI(c.ResultAddrPrefix)
 			if err != nil {
 				return err
@@ -61,7 +61,7 @@ func (c *Config) parseFlags() error {
 				c.ResultAddrPrefix += "/"
 			}
 		}
-	case c.ResultAddrPrefix != ResultAddrPrefix: // ввели -b
+	case c.ResultAddrPrefix != "": // ввели -b
 		u, err := url.ParseRequestURI(c.ResultAddrPrefix)
 		if err != nil {
 			return err
@@ -69,7 +69,7 @@ func (c *Config) parseFlags() error {
 		if u.Path != "" {
 			c.ResultPathPrefix = u.Path
 		}
-		if c.Addr != Addr { // ввели -a и ввели -b (возможно ненужная часть кода, т.к. это проверяется выше)
+		if c.Addr != "" { // ввели -a и ввели -b (возможно ненужная часть кода, т.к. это проверяется выше)
 			if u.Host != c.Addr {
 				return ErrInvalidResultAddrPrefix
 			}
@@ -77,6 +77,8 @@ func (c *Config) parseFlags() error {
 			c.Addr = u.Host
 		}
 	default: // значения по-умолчанию - не ввели -a и не ввели -b
+		c.Addr = Addr
+		c.ResultAddrPrefix = ResultAddrPrefix
 		u, err := url.ParseRequestURI(c.ResultAddrPrefix)
 		if err != nil {
 			return err
