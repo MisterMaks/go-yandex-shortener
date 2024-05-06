@@ -12,8 +12,20 @@ var (
 )
 
 type Config struct {
-	Addr             string
+	// Адрес запуска HTTP-сервера. Пример: localhost:8080
+	Addr string
+	// Базовый адрес результирующего сокращённого URL.
+	// Требования:
+	//     - Должен быть указан протокол: http/http
+	//     - Адрес должен быть равен адресу в поле Addr
+	//     - Путь URL Path должен быть (по-умолчанию /)
+	// Пример: http:localhost:8080/blablabla
 	ResultAddrPrefix string
+	// Базовый путь URL Path (проставляется автоматически из ResultAddrPrefix)
+	// Требования:
+	//     - Должен совпадать с путем URL Path в ResultAddrPrefix
+	//     - Начинается с /
+	// Пример: /blablabla
 	ResultPathPrefix string
 }
 
