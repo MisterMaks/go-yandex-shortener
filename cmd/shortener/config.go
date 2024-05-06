@@ -5,73 +5,66 @@ import (
 	"flag"
 	"net/url"
 	"strings"
+
+	"github.com/caarlos0/env/v11"
 )
 
 var (
-	ErrInvalidResultAddrPrefix = errors.New("invalid prefix of the resulting address")
+	ErrInvalidBaseURL = errors.New("invalid Base URL")
 )
 
 type Config struct {
 	// Адрес запуска HTTP-сервера. Пример: localhost:8080
-	Addr string
+	ServerAddress string `env:"SERVER_ADDRESS"`
 	// Базовый адрес результирующего сокращённого URL.
 	// Требования:
 	//     - Должен быть указан протокол: http/http
-	//     - Адрес должен быть равен адресу в поле Addr
+	//     - Адрес должен быть равен адресу в поле ServerAddress
 	//     - Путь URL Path должен быть (по-умолчанию /)
 	// Пример: http:localhost:8080/blablabla
-	ResultAddrPrefix string
-	// Базовый путь URL Path (проставляется автоматически из ResultAddrPrefix)
-	// Требования:
-	//     - Должен совпадать с путем URL Path в ResultAddrPrefix
-	//     - Начинается с /
-	// Пример: /blablabla
-	ResultPathPrefix string
+	BaseURL string `env:"BASE_URL"`
 }
 
 func (c *Config) parseFlags() error {
-	flag.StringVar(&c.Addr, "a", "", "Server address")
-	flag.StringVar(&c.ResultAddrPrefix, "b", "", "Prefix of the resulting address")
+	flag.StringVar(&c.ServerAddress, "a", "", "Server address")
+	flag.StringVar(&c.BaseURL, "b", "", "Base URL")
 	flag.Parse()
 
-	c.ResultPathPrefix = "/"
+	err := env.Parse(c)
+	if err != nil {
+		return err
+	}
 
 	// Если не ввели -a и -b, то значения по-умолчанию
-	if c.Addr == "" && c.ResultAddrPrefix == "" {
-		c.Addr = Addr
-		c.ResultAddrPrefix = ResultAddrPrefix
+	if c.ServerAddress == "" && c.BaseURL == "" {
+		c.ServerAddress = Addr
+		c.BaseURL = ResultAddrPrefix
 	}
 
 	switch {
-	case c.Addr != "" && c.ResultAddrPrefix != "": // ввели -a и -b ИЛИ значения по-умолчанию
-		u, err := url.ParseRequestURI(c.ResultAddrPrefix)
+	case c.ServerAddress != "" && c.BaseURL != "": // ввели -a и -b ИЛИ значения по-умолчанию
+		u, err := url.ParseRequestURI(c.BaseURL)
 		if err != nil {
 			return err
 		}
-		if u.Host != c.Addr {
-			return ErrInvalidResultAddrPrefix
+		if u.Host != c.ServerAddress {
+			return ErrInvalidBaseURL
 		}
-		if u.Path != "" {
-			c.ResultPathPrefix = u.Path
-		}
-	case c.Addr != "": // ввели только -a
-		c.ResultAddrPrefix = c.Addr
-	case c.ResultAddrPrefix != "": // ввели только -b
-		u, err := url.ParseRequestURI(c.ResultAddrPrefix)
+	case c.ServerAddress != "": // ввели только -a
+		c.BaseURL = c.ServerAddress
+	case c.BaseURL != "": // ввели только -b
+		u, err := url.ParseRequestURI(c.BaseURL)
 		if err != nil {
 			return err
 		}
-		if u.Path != "" {
-			c.ResultPathPrefix = u.Path
-		}
-		c.Addr = u.Host
+		c.ServerAddress = u.Host
 	}
 
-	if !strings.HasPrefix(c.ResultAddrPrefix, "http://") && !strings.HasPrefix(c.ResultAddrPrefix, "https://") {
-		c.ResultAddrPrefix = "http://" + c.ResultAddrPrefix
+	if !strings.HasPrefix(c.BaseURL, "http://") && !strings.HasPrefix(c.BaseURL, "https://") {
+		c.BaseURL = "http://" + c.BaseURL
 	}
-	if !strings.HasSuffix(c.ResultAddrPrefix, "/") {
-		c.ResultAddrPrefix += "/"
+	if !strings.HasSuffix(c.BaseURL, "/") {
+		c.BaseURL += "/"
 	}
 
 	return nil

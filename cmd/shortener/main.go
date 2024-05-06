@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -46,7 +47,7 @@ func main() {
 	appRepo := appRepoInternal.NewAppRepoInmem()
 	appUsecase, err := appUsecaseInternal.NewAppUsecase(
 		appRepo,
-		config.ResultAddrPrefix,
+		config.BaseURL,
 		CountRegenerationsForLengthID,
 		LengthID,
 		MaxLengthID,
@@ -57,10 +58,16 @@ func main() {
 
 	appHandler := appDeliveryInternal.NewAppHandler(appUsecase)
 
-	r := shortenerRouter(appHandler, config.ResultPathPrefix)
+	u, err := url.ParseRequestURI(config.BaseURL)
+	if err != nil {
+		log.Fatalln("CRITICAL\tFailed to parse config result addr prefix. Error:", err)
+	}
+	redirectPathPrefix := u.Path
 
-	log.Printf("INFO\tServer running on %s ...\n", config.Addr)
-	err = http.ListenAndServe(config.Addr, r)
+	r := shortenerRouter(appHandler, redirectPathPrefix)
+
+	log.Printf("INFO\tServer running on %s ...\n", config.ServerAddress)
+	err = http.ListenAndServe(config.ServerAddress, r)
 	if err != nil {
 		log.Fatalln("CRITICAL\tFailed to start server. Error:", err)
 	}
