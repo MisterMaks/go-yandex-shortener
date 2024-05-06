@@ -36,14 +36,14 @@ func (c *Config) parseFlags() error {
 
 	c.ResultPathPrefix = "/"
 
-	// Если не ввели -a и не ввели -b, то значения по-умолчанию
+	// Если не ввели -a и -b, то значения по-умолчанию
 	if c.Addr == "" && c.ResultAddrPrefix == "" {
 		c.Addr = Addr
 		c.ResultAddrPrefix = ResultAddrPrefix
 	}
 
 	switch {
-	case c.Addr != "" && c.ResultAddrPrefix != "": // ввели -a и ввели -b ИЛИ значения по-умолчанию
+	case c.Addr != "" && c.ResultAddrPrefix != "": // ввели -a и -b ИЛИ значения по-умолчанию
 		u, err := url.ParseRequestURI(c.ResultAddrPrefix)
 		if err != nil {
 			return err
@@ -54,7 +54,7 @@ func (c *Config) parseFlags() error {
 		if u.Path != "" {
 			c.ResultPathPrefix = u.Path
 		}
-	case c.Addr != "": // ввели -a и не ввели -b
+	case c.Addr != "": // ввели только -a
 		c.ResultAddrPrefix = c.Addr
 		if !strings.HasPrefix(c.ResultAddrPrefix, "http://") || !strings.HasPrefix(c.ResultAddrPrefix, "https://") {
 			c.ResultAddrPrefix = "http://" + c.ResultAddrPrefix
@@ -62,7 +62,7 @@ func (c *Config) parseFlags() error {
 		if !strings.HasSuffix(c.ResultAddrPrefix, "/") {
 			c.ResultAddrPrefix += "/"
 		}
-	case c.ResultAddrPrefix != "": // не ввели -a и ввели -b
+	case c.ResultAddrPrefix != "": // ввели только -b
 		u, err := url.ParseRequestURI(c.ResultAddrPrefix)
 		if err != nil {
 			return err
