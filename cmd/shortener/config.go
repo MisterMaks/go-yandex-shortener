@@ -34,46 +34,16 @@ func (c *Config) parseFlags() error {
 	flag.StringVar(&c.ResultAddrPrefix, "b", "", "Prefix of the resulting address")
 	flag.Parse()
 
-	switch {
-	case c.Addr != "": // ввели -a
-		if c.ResultAddrPrefix != "" { // ввели -a и ввели -b
-			u, err := url.ParseRequestURI(c.ResultAddrPrefix)
-			if err != nil {
-				return err
-			}
-			if u.Host != c.Addr {
-				return ErrInvalidResultAddrPrefix
-			}
-			if u.Path != "" {
-				c.ResultPathPrefix = u.Path
-			}
-		} else { // ввели -a и не ввели -b
-			c.ResultAddrPrefix = c.Addr
-			if !strings.HasPrefix(c.ResultAddrPrefix, "http://") || !strings.HasPrefix(c.ResultAddrPrefix, "https://") {
-				c.ResultAddrPrefix = "http://" + c.ResultAddrPrefix
-			}
-			if !strings.HasSuffix(c.ResultAddrPrefix, "/") {
-				c.ResultAddrPrefix += "/"
-			}
-		}
-	case c.ResultAddrPrefix != "": // ввели -b
-		u, err := url.ParseRequestURI(c.ResultAddrPrefix)
-		if err != nil {
-			return err
-		}
-		if u.Path != "" {
-			c.ResultPathPrefix = u.Path
-		}
-		if c.Addr != "" { // ввели -a и ввели -b (возможно ненужная часть кода, т.к. это проверяется выше)
-			if u.Host != c.Addr {
-				return ErrInvalidResultAddrPrefix
-			}
-		} else { // не ввели -a и ввели -b
-			c.Addr = u.Host
-		}
-	default: // значения по-умолчанию - не ввели -a и не ввели -b
+	c.ResultPathPrefix = "/"
+
+	// Если не ввели -a и не ввели -b, то значения по-умолчанию
+	if c.Addr == "" && c.ResultAddrPrefix == "" {
 		c.Addr = Addr
 		c.ResultAddrPrefix = ResultAddrPrefix
+	}
+
+	switch {
+	case c.Addr != "" && c.ResultAddrPrefix != "": // ввели -a и ввели -b ИЛИ значения по-умолчанию
 		u, err := url.ParseRequestURI(c.ResultAddrPrefix)
 		if err != nil {
 			return err
@@ -84,6 +54,23 @@ func (c *Config) parseFlags() error {
 		if u.Path != "" {
 			c.ResultPathPrefix = u.Path
 		}
+	case c.Addr != "": // ввели -a и не ввели -b
+		c.ResultAddrPrefix = c.Addr
+		if !strings.HasPrefix(c.ResultAddrPrefix, "http://") || !strings.HasPrefix(c.ResultAddrPrefix, "https://") {
+			c.ResultAddrPrefix = "http://" + c.ResultAddrPrefix
+		}
+		if !strings.HasSuffix(c.ResultAddrPrefix, "/") {
+			c.ResultAddrPrefix += "/"
+		}
+	case c.ResultAddrPrefix != "": // не ввели -a и ввели -b
+		u, err := url.ParseRequestURI(c.ResultAddrPrefix)
+		if err != nil {
+			return err
+		}
+		if u.Path != "" {
+			c.ResultPathPrefix = u.Path
+		}
+		c.Addr = u.Host
 	}
 
 	return nil
