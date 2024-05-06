@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -24,11 +25,12 @@ type AppHandlerInterface interface {
 	RedirectToURL(w http.ResponseWriter, r *http.Request)
 }
 
-func shortenerRouter(appHandler AppHandlerInterface) chi.Router {
+func shortenerRouter(appHandler AppHandlerInterface, redirectPathPrefix string) chi.Router {
 	r := chi.NewRouter()
+	redirectPathPrefix = strings.TrimPrefix(redirectPathPrefix, "/")
 	r.Route(`/`, func(r chi.Router) {
 		r.Post(`/`, appHandler.GetOrCreateURL)
-		r.Get(`/{id}`, appHandler.RedirectToURL)
+		r.Get(`/`+redirectPathPrefix+`{id}`, appHandler.RedirectToURL)
 	})
 	return r
 }
@@ -39,6 +41,7 @@ func main() {
 	if err != nil {
 		log.Fatalln("CRITICAL\tFailed to parse flags. Error:", err)
 	}
+	log.Println("INFO\tConfig:", config)
 
 	appRepo := appRepoInternal.NewAppRepoInmem()
 	appUsecase, err := appUsecaseInternal.NewAppUsecase(
@@ -54,7 +57,7 @@ func main() {
 
 	appHandler := appDeliveryInternal.NewAppHandler(appUsecase)
 
-	r := shortenerRouter(appHandler)
+	r := shortenerRouter(appHandler, config.ResultPathPrefix)
 
 	log.Printf("INFO\tServer running on %s ...\n", config.Addr)
 	err = http.ListenAndServe(config.Addr, r)

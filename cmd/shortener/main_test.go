@@ -71,7 +71,7 @@ func testRequest(
 func TestRouter(t *testing.T) {
 	tau := &testAppUsecase{}
 	appHandler := appDeliveryInternal.NewAppHandler(tau)
-	ts := httptest.NewServer(shortenerRouter(appHandler))
+	ts := httptest.NewServer(shortenerRouter(appHandler, "/"))
 	defer ts.Close()
 	client := ts.Client()
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {

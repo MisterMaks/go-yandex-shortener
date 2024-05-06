@@ -13,6 +13,7 @@ var (
 type Config struct {
 	Addr             string
 	ResultAddrPrefix string
+	ResultPathPrefix string
 }
 
 func (c *Config) parseFlags() error {
@@ -26,5 +27,6 @@ func (c *Config) parseFlags() error {
 	if u.Host != c.Addr || u.Path == "" {
 		return ErrInvalidResultAddrPrefix
 	}
+	c.ResultPathPrefix = u.Path
 	return nil
 }
