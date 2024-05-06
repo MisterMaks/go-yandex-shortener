@@ -34,11 +34,6 @@ func (c *Config) parseFlags() error {
 	flag.StringVar(&c.ResultAddrPrefix, "b", "", "Prefix of the resulting address")
 	flag.Parse()
 
-	if !strings.HasSuffix(c.ResultAddrPrefix, "/") {
-		c.ResultAddrPrefix += "/"
-	}
-	c.ResultPathPrefix = "/"
-
 	switch {
 	case c.Addr != "": // ввели -a
 		if c.ResultAddrPrefix != "" { // ввели -a и ввели -b
