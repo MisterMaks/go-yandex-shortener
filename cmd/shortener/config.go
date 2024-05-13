@@ -18,10 +18,9 @@ type Config struct {
 	ServerAddress string `env:"SERVER_ADDRESS"`
 	// Базовый адрес результирующего сокращённого URL
 	// Требования:
-	//     - Должен быть указан протокол: http/http
-	//     - Адрес должен быть равен адресу в поле ServerAddress
-	//     - Путь URL Path должен быть (по-умолчанию /)
-	// Пример: http:localhost:8080/blablabla
+	//     - Должен быть указан протокол (по умолчанию автоматически добавится http://): http/https
+	//     - Путь URL Path должен быть (по-умолчанию автоматически добавится /)
+	// Пример: http://localhost:8080/blablabla
 	BaseURL string `env:"BASE_URL"`
 }
 
@@ -36,28 +35,16 @@ func (c *Config) parseFlags() error {
 	}
 
 	// Если не ввели -a и -b, то значения по-умолчанию
-	if c.ServerAddress == "" && c.BaseURL == "" {
+	if c.ServerAddress == "" {
 		c.ServerAddress = Addr
+	}
+	if c.BaseURL == "" {
 		c.BaseURL = ResultAddrPrefix
 	}
 
-	switch {
-	case c.ServerAddress != "" && c.BaseURL != "": // ввели -a и -b ИЛИ значения по-умолчанию
-		u, err := url.ParseRequestURI(c.BaseURL)
-		if err != nil {
-			return err
-		}
-		if u.Host != c.ServerAddress {
-			return ErrInvalidBaseURL
-		}
-	case c.ServerAddress != "": // ввели только -a
-		c.BaseURL = c.ServerAddress
-	case c.BaseURL != "": // ввели только -b
-		u, err := url.ParseRequestURI(c.BaseURL)
-		if err != nil {
-			return err
-		}
-		c.ServerAddress = u.Host
+	_, err = url.ParseRequestURI(c.BaseURL)
+	if err != nil {
+		return err
 	}
 
 	if !strings.HasPrefix(c.BaseURL, "http://") && !strings.HasPrefix(c.BaseURL, "https://") {
