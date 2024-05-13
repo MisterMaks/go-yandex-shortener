@@ -11,31 +11,24 @@ var ErrURLNotFound = errors.New("url not found")
 
 type AppRepoInmem struct {
 	urls []*app.URL
-	mu   *sync.RWMutex
+	mu   sync.RWMutex
 }
 
 func NewAppRepoInmem() *AppRepoInmem {
 	return &AppRepoInmem{
 		urls: []*app.URL{},
-		mu:   &sync.RWMutex{},
+		mu:   sync.RWMutex{},
 	}
 }
 
 func (ari *AppRepoInmem) GetOrCreateURL(id, rawURL string) (*app.URL, error) {
-	if ari.mu == nil {
-		ari.mu = &sync.RWMutex{}
-	}
-
-	ari.mu.RLock()
+	ari.mu.Lock()
+	defer ari.mu.Unlock()
 	for _, url := range ari.urls {
 		if rawURL == url.URL {
-			ari.mu.RUnlock()
 			return url, nil
 		}
 	}
-	ari.mu.RUnlock()
-	ari.mu.Lock()
-	defer ari.mu.Unlock()
 	url, err := app.NewURL(id, rawURL)
 	if err != nil {
 		return nil, err
@@ -45,10 +38,6 @@ func (ari *AppRepoInmem) GetOrCreateURL(id, rawURL string) (*app.URL, error) {
 }
 
 func (ari *AppRepoInmem) GetURL(id string) (*app.URL, error) {
-	if ari.mu == nil {
-		ari.mu = &sync.RWMutex{}
-	}
-
 	ari.mu.RLock()
 	defer ari.mu.RUnlock()
 	for _, url := range ari.urls {
@@ -60,10 +49,6 @@ func (ari *AppRepoInmem) GetURL(id string) (*app.URL, error) {
 }
 
 func (ari *AppRepoInmem) CheckIDExistence(id string) (bool, error) {
-	if ari.mu == nil {
-		ari.mu = &sync.RWMutex{}
-	}
-
 	ari.mu.RLock()
 	defer ari.mu.RUnlock()
 	for _, url := range ari.urls {

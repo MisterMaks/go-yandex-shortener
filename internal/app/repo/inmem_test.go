@@ -17,7 +17,7 @@ func TestNewAppRepoInmem(t *testing.T) {
 			name: "test 1",
 			want: &AppRepoInmem{
 				urls: []*app.URL{},
-				mu:   &sync.RWMutex{},
+				mu:   sync.RWMutex{},
 			},
 		},
 	}
@@ -30,7 +30,6 @@ func TestNewAppRepoInmem(t *testing.T) {
 func TestAppRepoInmem_GetOrCreateURL(t *testing.T) {
 	type fields struct {
 		urls []*app.URL
-		mu   *sync.RWMutex
 	}
 	type args struct {
 		id     string
@@ -51,7 +50,6 @@ func TestAppRepoInmem_GetOrCreateURL(t *testing.T) {
 			name: "create new URL",
 			fields: fields{
 				urls: nil,
-				mu:   &sync.RWMutex{},
 			},
 			args: args{
 				id:     "1",
@@ -69,7 +67,6 @@ func TestAppRepoInmem_GetOrCreateURL(t *testing.T) {
 			name: "get existed URL",
 			fields: fields{
 				urls: []*app.URL{{ID: "1", URL: "yandex.ru"}},
-				mu:   &sync.RWMutex{},
 			},
 			args: args{
 				id:     "2",
@@ -89,7 +86,7 @@ func TestAppRepoInmem_GetOrCreateURL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ari := &AppRepoInmem{
 				urls: tt.fields.urls,
-				mu:   tt.fields.mu,
+				mu:   sync.RWMutex{},
 			}
 			url, err := ari.GetOrCreateURL(tt.args.id, tt.args.rawURL)
 			if tt.want.wantErr {
@@ -106,7 +103,6 @@ func TestAppRepoInmem_GetOrCreateURL(t *testing.T) {
 func TestAppRepoInmem_GetURL(t *testing.T) {
 	type fields struct {
 		urls []*app.URL
-		mu   *sync.RWMutex
 	}
 	type args struct {
 		id string
@@ -126,7 +122,6 @@ func TestAppRepoInmem_GetURL(t *testing.T) {
 			name: "get existed URL",
 			fields: fields{
 				urls: []*app.URL{{ID: "1", URL: "yandex.ru"}},
-				mu:   &sync.RWMutex{},
 			},
 			args: args{
 				id: "1",
@@ -143,7 +138,6 @@ func TestAppRepoInmem_GetURL(t *testing.T) {
 			name: "get non-existent URL",
 			fields: fields{
 				urls: []*app.URL{{ID: "1", URL: "yandex.ru"}},
-				mu:   &sync.RWMutex{},
 			},
 			args: args{
 				id: "2",
@@ -159,7 +153,7 @@ func TestAppRepoInmem_GetURL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ari := &AppRepoInmem{
 				urls: tt.fields.urls,
-				mu:   tt.fields.mu,
+				mu:   sync.RWMutex{},
 			}
 			url, err := ari.GetURL(tt.args.id)
 			if tt.want.wantErr {
@@ -175,7 +169,6 @@ func TestAppRepoInmem_GetURL(t *testing.T) {
 func TestAppRepoInmem_CheckIDExistence(t *testing.T) {
 	type fields struct {
 		urls []*app.URL
-		mu   *sync.RWMutex
 	}
 	type args struct {
 		id string
@@ -195,7 +188,6 @@ func TestAppRepoInmem_CheckIDExistence(t *testing.T) {
 			name: "check existed URL",
 			fields: fields{
 				urls: []*app.URL{{ID: "1", URL: "yandex.ru"}},
-				mu:   &sync.RWMutex{},
 			},
 			args: args{
 				id: "1",
@@ -209,24 +201,9 @@ func TestAppRepoInmem_CheckIDExistence(t *testing.T) {
 			name: "check non-existed URL",
 			fields: fields{
 				urls: []*app.URL{{ID: "1", URL: "yandex.ru"}},
-				mu:   &sync.RWMutex{},
 			},
 			args: args{
 				id: "2",
-			},
-			want: want{
-				checked: false,
-				wantErr: false,
-			},
-		},
-		{
-			name: "check nil mutex",
-			fields: fields{
-				urls: nil,
-				mu:   nil,
-			},
-			args: args{
-				id: "1",
 			},
 			want: want{
 				checked: false,
@@ -238,7 +215,7 @@ func TestAppRepoInmem_CheckIDExistence(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ari := &AppRepoInmem{
 				urls: tt.fields.urls,
-				mu:   tt.fields.mu,
+				mu:   sync.RWMutex{},
 			}
 			checked, err := ari.CheckIDExistence(tt.args.id)
 			if tt.want.wantErr {
