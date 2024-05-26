@@ -19,7 +19,7 @@ const (
 	MethodKey            string                  = "method"
 	URIKey               string                  = "uri"
 	RequestIDKey         string                  = "request_id"
-	ContextRequestIdKey  ContextRequestIDKeyType = "request_id"
+	ContextRequestIDKey  ContextRequestIDKeyType = "request_id"
 	ExecutionDurationKey string                  = "execution_duration"
 	StatusCodeKey        string                  = "status_code"
 	ResponseBodySizeBKey string                  = "response_body_size_B"
