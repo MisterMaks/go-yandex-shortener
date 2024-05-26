@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -11,13 +12,18 @@ import (
 
 var Log *zap.Logger = zap.NewNop()
 
+type ContextRequestIDKeyType string
+type LoggerKeyType string
+
 const (
-	MethodKey            string = "method"
-	URIKey               string = "uri"
-	RequestIDKey         string = "request_id"
-	ExecutionDurationKey string = "execution_duration"
-	StatusCodeKey        string = "status_code"
-	ResponseBodySizeBKey string = "response_body_size_B"
+	MethodKey            string                  = "method"
+	URIKey               string                  = "uri"
+	RequestIDKey         string                  = "request_id"
+	ContextRequestIdKey  ContextRequestIDKeyType = "request_id"
+	ExecutionDurationKey string                  = "execution_duration"
+	StatusCodeKey        string                  = "status_code"
+	ResponseBodySizeBKey string                  = "response_body_size_B"
+	LoggerKey            LoggerKeyType           = "logger_key"
 )
 
 func Initialize(level string) error {
@@ -72,8 +78,12 @@ func RequestLogger(h http.Handler) http.Handler {
 			zap.Any(URIKey, r.RequestURI),
 			zap.String(RequestIDKey, requestID),
 		)
+		ctxLogger := Log.With(
+			zap.String(RequestIDKey, requestID),
+		)
+		ctx := context.WithValue(r.Context(), LoggerKey, ctxLogger)
 		now := time.Now()
-		h.ServeHTTP(lrw, r)
+		h.ServeHTTP(lrw, r.WithContext(ctx))
 		Log.Info("processed incoming HTTP request",
 			zap.Int(StatusCodeKey, lrw.statusCode),
 			zap.Int(ResponseBodySizeBKey, lrw.bodySize),
@@ -81,4 +91,15 @@ func RequestLogger(h http.Handler) http.Handler {
 			zap.String(RequestIDKey, requestID),
 		)
 	})
+}
+
+func GetLoggerWithRequestID(ctx context.Context) *zap.Logger {
+	if ctx == nil {
+		return Log
+	}
+	logger, ok := ctx.Value(LoggerKey).(*zap.Logger)
+	if !ok || logger == nil {
+		return Log
+	}
+	return logger
 }

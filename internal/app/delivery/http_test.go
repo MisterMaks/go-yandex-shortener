@@ -154,6 +154,105 @@ func TestAppHandler_GetOrCreateURL(t *testing.T) {
 	}
 }
 
+func TestAppHandler_APIGetOrCreateURL(t *testing.T) {
+	type request struct {
+		method      string
+		contentType string
+		url         string
+		body        []byte
+	}
+	type want struct {
+		statusCode  int
+		contentType string
+		response    string
+	}
+
+	tests := []struct {
+		name    string
+		request request
+		want    want
+	}{
+		{
+			name: "valid URL",
+			request: request{
+				method:      http.MethodPost,
+				contentType: ApplicationJSONKey,
+				url:         TestHost + "/api/shorten",
+				body:        []byte(`{"url": "` + TestValidURL + `"}`),
+			},
+			want: want{
+				statusCode:  http.StatusCreated,
+				response:    `{"result": "1"}`,
+				contentType: ApplicationJSONKey,
+			},
+		},
+		{
+			name: "invalid URL",
+			request: request{
+				method:      http.MethodPost,
+				contentType: ApplicationJSONKey,
+				url:         TestHost + "/api/shorten",
+				body:        []byte(`{"url": "` + TestInvalidURL + `"}`),
+			},
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
+		},
+		{
+			name: "invalid method",
+			request: request{
+				method:      http.MethodGet,
+				contentType: ApplicationJSONKey,
+				url:         TestHost + "/api/shorten",
+				body:        []byte(`{"url": "` + TestValidURL + `"}`),
+			},
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+			},
+		},
+		{
+			name: "invalid Header Content-Type",
+			request: request{
+				method:      http.MethodPost,
+				contentType: "invalid Header Content-Type",
+				url:         TestHost + "/api/shorten",
+				body:        []byte(`{"url": "` + TestValidURL + `"}`),
+			},
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tau := &testAppUsecase{}
+			appHandler := NewAppHandler(tau)
+
+			bodyReader := bytes.NewReader(tt.request.body)
+
+			req := httptest.NewRequest(tt.request.method, tt.request.url, bodyReader)
+			req.Header.Add(ContentTypeKey, tt.request.contentType)
+			w := httptest.NewRecorder()
+
+			appHandler.APIGetOrCreateURL(w, req)
+
+			res := w.Result()
+
+			assert.Equal(t, tt.want.statusCode, res.StatusCode)
+			switch res.StatusCode {
+			case http.StatusCreated:
+				assert.Contains(t, res.Header.Values(ContentTypeKey), tt.want.contentType)
+
+				defer res.Body.Close()
+				resBody, err := io.ReadAll(res.Body)
+				require.NoError(t, err)
+				assert.JSONEq(t, tt.want.response, string(resBody))
+			}
+		})
+	}
+}
+
 func TestAppHandler_RedirectToURL(t *testing.T) {
 	type request struct {
 		method string
