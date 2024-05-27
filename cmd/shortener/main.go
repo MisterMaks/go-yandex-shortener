@@ -12,6 +12,7 @@ import (
 	appDeliveryInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/delivery"
 	appRepoInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/repo"
 	appUsecaseInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/usecase"
+	"github.com/MisterMaks/go-yandex-shortener/internal/gzip"
 	"github.com/MisterMaks/go-yandex-shortener/internal/logger"
 )
 
@@ -37,10 +38,11 @@ func shortenerRouter(appHandler AppHandlerInterface, redirectPathPrefix string) 
 	r := chi.NewRouter()
 	r.Use(logger.RequestLogger)
 	redirectPathPrefix = strings.TrimPrefix(redirectPathPrefix, "/")
+	r.Get(`/`+redirectPathPrefix+`{id}`, appHandler.RedirectToURL)
 	r.Route(`/`, func(r chi.Router) {
+		r.Use(gzip.GzipMiddleware)
 		r.Post(`/`, appHandler.GetOrCreateURL)
 		r.Post(`/api/shorten`, appHandler.APIGetOrCreateURL)
-		r.Get(`/`+redirectPathPrefix+`{id}`, appHandler.RedirectToURL)
 	})
 	return r
 }
