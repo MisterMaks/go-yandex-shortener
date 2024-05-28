@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"os"
 	"sync"
 	"testing"
 
@@ -8,23 +9,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewAppRepoInmem(t *testing.T) {
-	tests := []struct {
-		name string
-		want *AppRepoInmem
-	}{
-		{
-			name: "test 1",
-			want: &AppRepoInmem{
-				urls: []*app.URL{},
-				mu:   sync.RWMutex{},
-			},
-		},
-	}
+const (
+	TestFilename string = "../../../test/internal_app_repo_inmem_test.txt"
+)
 
-	for _, tt := range tests {
-		assert.Equal(t, tt.want, NewAppRepoInmem())
-	}
+func TestNewAppRepoInmem(t *testing.T) {
+	appRepoInMem, err := NewAppRepoInmem(TestFilename)
+	assert.NoError(t, err)
+	assert.NotNil(t, appRepoInMem)
+	os.Remove(TestFilename)
 }
 
 func TestAppRepoInmem_GetOrCreateURL(t *testing.T) {
@@ -84,9 +77,14 @@ func TestAppRepoInmem_GetOrCreateURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			producer, err := newProducer(TestFilename)
+			if err != nil {
+				t.Fatalf("CRITICAL\tUnexpected error. Error: %v\n", err)
+			}
 			ari := &AppRepoInmem{
-				urls: tt.fields.urls,
-				mu:   sync.RWMutex{},
+				urls:     tt.fields.urls,
+				mu:       sync.RWMutex{},
+				producer: producer,
 			}
 			url, err := ari.GetOrCreateURL(tt.args.id, tt.args.rawURL)
 			if tt.want.wantErr {
@@ -98,6 +96,7 @@ func TestAppRepoInmem_GetOrCreateURL(t *testing.T) {
 			assert.Contains(t, ari.urls, url)
 		})
 	}
+	os.Remove(TestFilename)
 }
 
 func TestAppRepoInmem_GetURL(t *testing.T) {
@@ -164,6 +163,7 @@ func TestAppRepoInmem_GetURL(t *testing.T) {
 			assert.Equal(t, tt.want.url, url)
 		})
 	}
+	os.Remove(TestFilename)
 }
 
 func TestAppRepoInmem_CheckIDExistence(t *testing.T) {
@@ -213,9 +213,14 @@ func TestAppRepoInmem_CheckIDExistence(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			producer, err := newProducer(TestFilename)
+			if err != nil {
+				t.Fatalf("CRITICAL\tUnexpected error. Error: %v\n", err)
+			}
 			ari := &AppRepoInmem{
-				urls: tt.fields.urls,
-				mu:   sync.RWMutex{},
+				urls:     tt.fields.urls,
+				mu:       sync.RWMutex{},
+				producer: producer,
 			}
 			checked, err := ari.CheckIDExistence(tt.args.id)
 			if tt.want.wantErr {
@@ -226,4 +231,5 @@ func TestAppRepoInmem_CheckIDExistence(t *testing.T) {
 			assert.Equal(t, tt.want.checked, checked)
 		})
 	}
+	os.Remove(TestFilename)
 }

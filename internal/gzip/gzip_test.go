@@ -8,9 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/MisterMaks/go-yandex-shortener/internal/logger"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 const (
@@ -27,10 +25,7 @@ func TestGzipCompression(t *testing.T) {
 	handler := http.Handler(GzipMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			logger.Log.Fatal("Unexpected error",
-				zap.Any(RequestBodyKey, r.Body),
-				zap.Error(err),
-			)
+			t.Fatalf("CRITICAL\tUnexpected error. %s: %v. Error: %v\n", RequestBodyKey, r.Body, err)
 		}
 		bodyStr := string(body)
 

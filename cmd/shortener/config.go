@@ -21,14 +21,16 @@ type Config struct {
 	//     - Должен быть указан протокол (по умолчанию автоматически добавится http://): http/https
 	//     - Путь URL Path должен быть (по-умолчанию автоматически добавится /)
 	// Пример: http://localhost:8080/blablabla
-	BaseURL  string `env:"BASE_URL"`
-	LogLevel string `env:"LOG_LEVEL"`
+	BaseURL         string `env:"BASE_URL"`
+	LogLevel        string `env:"LOG_LEVEL"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 }
 
 func (c *Config) parseFlags() error {
 	flag.StringVar(&c.ServerAddress, "a", "", "Server address")
 	flag.StringVar(&c.BaseURL, "b", "", "Base URL")
 	flag.StringVar(&c.LogLevel, "l", "", "Log level")
+	flag.StringVar(&c.FileStoragePath, "f", "", "File storage path")
 	flag.Parse()
 
 	err := env.Parse(c)
@@ -36,7 +38,7 @@ func (c *Config) parseFlags() error {
 		return err
 	}
 
-	// Если не ввели -a, -b, -l то значения по-умолчанию
+	// Если не ввели -a, -b, -l, -f то значения по-умолчанию
 	if c.ServerAddress == "" {
 		c.ServerAddress = Addr
 	}
@@ -45,6 +47,9 @@ func (c *Config) parseFlags() error {
 	}
 	if c.LogLevel == "" {
 		c.LogLevel = LogLevel
+	}
+	if c.FileStoragePath == "" {
+		c.FileStoragePath = FileStoragePath
 	}
 
 	_, err = url.ParseRequestURI(c.BaseURL)

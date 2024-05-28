@@ -19,6 +19,7 @@ import (
 const (
 	Addr                          string = "localhost:8080"
 	ResultAddrPrefix              string = "http://localhost:8080/"
+	FileStoragePath               string = "/tmp/short-url-db.json"
 	CountRegenerationsForLengthID uint   = 5
 	LengthID                      uint   = 5
 	MaxLengthID                   uint   = 20
@@ -63,7 +64,13 @@ func main() {
 		zap.Any(ConfigKey, config),
 	)
 
-	appRepo := appRepoInternal.NewAppRepoInmem()
+	appRepo, err := appRepoInternal.NewAppRepoInmem(config.FileStoragePath)
+	if err != nil {
+		logger.Log.Fatal("Failed to create appRepo",
+			zap.Error(err),
+		)
+	}
+	defer appRepo.Close()
 	appUsecase, err := appUsecaseInternal.NewAppUsecase(
 		appRepo,
 		config.BaseURL,
