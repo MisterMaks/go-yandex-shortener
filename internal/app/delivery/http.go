@@ -57,15 +57,9 @@ func (ah *AppHandler) GetOrCreateURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isTextPlain := false
-	for _, value := range r.Header.Values(ContentTypeKey) {
-		if strings.Contains(value, TextPlainKey) {
-			isTextPlain = true
-			break
-		}
-	}
-	if !isTextPlain {
-		handlerLogger.Warn("Request header \"Content-Type\" does not contain \"text/plain\"",
+	contentType := r.Header.Get(ContentTypeKey)
+	if !(strings.Contains(contentType, TextPlainKey) || strings.Contains(contentType, "application/x-gzip")) {
+		handlerLogger.Warn("Request header \"Content-Type\" does not contain \"text/plain\" or \"application/x-gzip\"",
 			zap.Any(HeaderKey, r.Header),
 		)
 		w.WriteHeader(http.StatusBadRequest)
@@ -120,14 +114,8 @@ func (ah *AppHandler) APIGetOrCreateURL(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	isApplicationJSON := false
-	for _, value := range r.Header.Values(ContentTypeKey) {
-		if strings.Contains(value, ApplicationJSONKey) {
-			isApplicationJSON = true
-			break
-		}
-	}
-	if !isApplicationJSON {
+	contentType := r.Header.Get(ContentTypeKey)
+	if !(strings.Contains(contentType, ApplicationJSONKey) || strings.Contains(contentType, "application/x-gzip")) {
 		handlerLogger.Warn("Request header \"Content-Type\" does not contain \"text/plain\"",
 			zap.Any(HeaderKey, r.Header),
 		)
