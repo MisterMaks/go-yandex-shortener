@@ -11,6 +11,9 @@ const (
 	ContentTypeKey     string = "Content-Type"
 	TextHTTPKey        string = "text/plain"
 	ApplicationJSONKey string = "application/json"
+	GzipKey            string = "gzip"
+	ContentEncodingKey string = "Content-Encoding"
+	AcceptEncodingKey  string = "Accept-Encoding"
 )
 
 // compressWriter реализует интерфейс http.ResponseWriter и позволяет прозрачно для сервера
@@ -37,7 +40,7 @@ func (c *compressWriter) Write(p []byte) (int, error) {
 
 func (c *compressWriter) WriteHeader(statusCode int) {
 	if statusCode < 300 {
-		c.w.Header().Set("Content-Encoding", "gzip")
+		c.w.Header().Set(ContentEncodingKey, GzipKey)
 	}
 	c.w.WriteHeader(statusCode)
 }
@@ -90,8 +93,8 @@ func GzipMiddleware(h http.Handler) http.Handler {
 		ow := w
 
 		// проверяем, что клиент умеет получать от сервера сжатые данные в формате gzip
-		acceptEncoding := r.Header.Get("Accept-Encoding")
-		supportsGzip := strings.Contains(acceptEncoding, "gzip")
+		acceptEncoding := r.Header.Get(AcceptEncodingKey)
+		supportsGzip := strings.Contains(acceptEncoding, GzipKey)
 		if supportsGzip {
 			// оборачиваем оригинальный http.ResponseWriter новым с поддержкой сжатия
 			cw := newCompressWriter(w)
@@ -102,8 +105,8 @@ func GzipMiddleware(h http.Handler) http.Handler {
 		}
 
 		// проверяем, что клиент отправил серверу сжатые данные в формате gzip
-		contentEncoding := r.Header.Get("Content-Encoding")
-		sendsGzip := strings.Contains(contentEncoding, "gzip")
+		contentEncoding := r.Header.Get(ContentEncodingKey)
+		sendsGzip := strings.Contains(contentEncoding, GzipKey)
 		if sendsGzip {
 			// оборачиваем тело запроса в io.Reader с поддержкой декомпрессии
 			cr, err := newCompressReader(r.Body)
