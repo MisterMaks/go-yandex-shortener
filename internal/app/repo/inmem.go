@@ -16,6 +16,14 @@ type AppRepoInmem struct {
 }
 
 func NewAppRepoInmem(filename string) (*AppRepoInmem, error) {
+	if filename == "" {
+		return &AppRepoInmem{
+			urls:     []*app.URL{},
+			mu:       sync.RWMutex{},
+			producer: nil,
+		}, nil
+	}
+
 	consumer, err := newConsumer(filename)
 	if err != nil {
 		return nil, err
@@ -49,7 +57,11 @@ func (ari *AppRepoInmem) GetOrCreateURL(id, rawURL string) (*app.URL, error) {
 		return nil, err
 	}
 	ari.urls = append(ari.urls, url)
-	ari.producer.writeURL(url)
+
+	if ari.producer != nil {
+		ari.producer.writeURL(url)
+	}
+
 	return url, nil
 }
 
