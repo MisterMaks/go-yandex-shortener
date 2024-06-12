@@ -1,12 +1,14 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 
 	appDeliveryInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/delivery"
@@ -33,6 +35,7 @@ type AppHandlerInterface interface {
 	GetOrCreateURL(w http.ResponseWriter, r *http.Request)
 	APIGetOrCreateURL(w http.ResponseWriter, r *http.Request)
 	RedirectToURL(w http.ResponseWriter, r *http.Request)
+	Ping(w http.ResponseWriter, r *http.Request)
 }
 
 func shortenerRouter(appHandler AppHandlerInterface, redirectPathPrefix string) chi.Router {
@@ -40,12 +43,25 @@ func shortenerRouter(appHandler AppHandlerInterface, redirectPathPrefix string) 
 	r.Use(logger.RequestLogger)
 	redirectPathPrefix = strings.TrimPrefix(redirectPathPrefix, "/")
 	r.Get(`/`+redirectPathPrefix+`{id}`, appHandler.RedirectToURL)
+	r.Get(`/ping`, appHandler.Ping)
 	r.Route(`/`, func(r chi.Router) {
 		r.Use(gzip.GzipMiddleware)
 		r.Post(`/`, appHandler.GetOrCreateURL)
 		r.Post(`/api/shorten`, appHandler.APIGetOrCreateURL)
 	})
 	return r
+}
+
+func connectPostgres(dsn string) (*sql.DB, error) {
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		return nil, err
+	}
+	err = db.Ping()
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
 }
 
 func main() {
@@ -64,6 +80,13 @@ func main() {
 		zap.Any(ConfigKey, config),
 	)
 
+	db, err := connectPostgres(config.DatabaseDSN)
+	if err != nil {
+		logger.Log.Fatal("Failed to connect to Postgres",
+			zap.Error(err),
+		)
+	}
+
 	appRepo, err := appRepoInternal.NewAppRepoInmem(config.FileStoragePath)
 	if err != nil {
 		logger.Log.Fatal("Failed to create appRepo",
@@ -71,12 +94,21 @@ func main() {
 		)
 	}
 	defer appRepo.Close()
+
+	appRepoPostgres, err := appRepoInternal.NewAppRepoPostgres(db)
+	if err != nil {
+		logger.Log.Fatal("Failed to create appRepoPostgres",
+			zap.Error(err),
+		)
+	}
+
 	appUsecase, err := appUsecaseInternal.NewAppUsecase(
 		appRepo,
 		config.BaseURL,
 		CountRegenerationsForLengthID,
 		LengthID,
 		MaxLengthID,
+		appRepoPostgres,
 	)
 	if err != nil {
 		logger.Log.Fatal("Failed to create appUsecase",

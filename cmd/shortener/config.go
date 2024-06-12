@@ -25,6 +25,7 @@ type Config struct {
 	BaseURL         string `env:"BASE_URL"`
 	LogLevel        string `env:"LOG_LEVEL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	DatabaseDSN     string `env:"DATABASE_DSN"`
 }
 
 func (c *Config) parseFlags() error {
@@ -32,6 +33,7 @@ func (c *Config) parseFlags() error {
 	flag.StringVar(&c.BaseURL, "b", "", "Base URL")
 	flag.StringVar(&c.LogLevel, "l", "", "Log level")
 	flag.StringVar(&c.FileStoragePath, "f", "", "File storage path")
+	flag.StringVar(&c.DatabaseDSN, "d", "", "Database DSN")
 	flag.Parse()
 
 	foundFlagFileStoragePath := false

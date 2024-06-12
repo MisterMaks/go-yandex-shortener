@@ -34,6 +34,7 @@ type AppUsecaseInterface interface {
 	GetOrCreateURL(rawURL string) (*app.URL, error)
 	GetURL(id string) (*app.URL, error)
 	GenerateShortURL(id string) string
+	Ping() error
 }
 
 type AppHandler struct {
@@ -208,4 +209,28 @@ func (ah *AppHandler) RedirectToURL(w http.ResponseWriter, r *http.Request) {
 	)
 
 	http.Redirect(w, r, url.URL, http.StatusTemporaryRedirect)
+}
+
+func (ah *AppHandler) Ping(w http.ResponseWriter, r *http.Request) {
+	handlerLogger := logger.GetLoggerWithRequestID(r.Context())
+
+	handlerLogger.Info("Ping DB")
+
+	if r.Method != http.MethodGet {
+		handlerLogger.Warn("Request method is not GET",
+			zap.String(MethodKey, r.Method),
+		)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	err := ah.AppUsecase.Ping()
+	if err != nil {
+		handlerLogger.Error("Failed to ping DB",
+			zap.Error(err),
+		)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

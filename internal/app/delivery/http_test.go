@@ -55,6 +55,10 @@ func (tau *testAppUsecase) GenerateShortURL(id string) string {
 	return id
 }
 
+func (tau *testAppUsecase) Ping() error {
+	return nil
+}
+
 func TestAppHandler_GetOrCreateURL(t *testing.T) {
 	type request struct {
 		method      string

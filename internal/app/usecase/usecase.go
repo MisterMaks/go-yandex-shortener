@@ -6,6 +6,7 @@ import (
 	"net/url"
 
 	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
+	appRepo "github.com/MisterMaks/go-yandex-shortener/internal/app/repo"
 )
 
 const (
@@ -44,9 +45,11 @@ type AppUsecase struct {
 	CountRegenerationsForLengthID uint
 	LengthID                      uint
 	MaxLengthID                   uint
+
+	AppRepoPostgres *appRepo.AppRepoPostgres
 }
 
-func NewAppUsecase(appRepo AppRepoInterface, baseURL string, countRegenerationsForLengthID, lengthID, maxLengthID uint) (*AppUsecase, error) {
+func NewAppUsecase(appRepo AppRepoInterface, baseURL string, countRegenerationsForLengthID, lengthID, maxLengthID uint, appRepoPostgres *appRepo.AppRepoPostgres) (*AppUsecase, error) {
 	if lengthID == 0 {
 		return nil, ErrZeroLengthID
 	}
@@ -69,6 +72,7 @@ func NewAppUsecase(appRepo AppRepoInterface, baseURL string, countRegenerationsF
 		CountRegenerationsForLengthID: countRegenerationsForLengthID,
 		LengthID:                      lengthID,
 		MaxLengthID:                   maxLengthID,
+		AppRepoPostgres:               appRepoPostgres,
 	}, nil
 }
 
@@ -107,4 +111,8 @@ func (au *AppUsecase) GetURL(id string) (*app.URL, error) {
 
 func (au *AppUsecase) GenerateShortURL(id string) string {
 	return au.BaseURL + id
+}
+
+func (au *AppUsecase) Ping() error {
+	return au.AppRepoPostgres.Ping()
 }

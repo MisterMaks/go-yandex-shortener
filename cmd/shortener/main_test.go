@@ -56,6 +56,10 @@ func (tau *testAppUsecase) GenerateShortURL(id string) string {
 	return id
 }
 
+func (tau *testAppUsecase) Ping() error {
+	return nil
+}
+
 func testRequest(
 	t *testing.T,
 	ts *httptest.Server,

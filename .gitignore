@@ -24,3 +24,5 @@ vendor/
 
 # Debug scripts
 cmd/client/
+
+local_db.txt

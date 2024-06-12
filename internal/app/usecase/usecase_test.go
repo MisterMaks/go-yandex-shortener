@@ -192,7 +192,7 @@ func TestNewAppUsecase(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tar := &testAppRepo{}
-			appUsecase, err := NewAppUsecase(tar, tt.args.resultAddrPrefix, tt.args.countRegenerationsForLengthID, tt.args.lengthID, tt.args.maxLengthID)
+			appUsecase, err := NewAppUsecase(tar, tt.args.resultAddrPrefix, tt.args.countRegenerationsForLengthID, tt.args.lengthID, tt.args.maxLengthID, nil)
 			if tt.want.wantErr {
 				assert.Error(t, err)
 			} else {
