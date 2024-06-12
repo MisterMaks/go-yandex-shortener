@@ -116,7 +116,7 @@ func (ah *AppHandler) APIGetOrCreateURL(w http.ResponseWriter, r *http.Request) 
 
 	contentType := r.Header.Get(ContentTypeKey)
 	if !(strings.Contains(contentType, ApplicationJSONKey) || strings.Contains(contentType, "application/x-gzip")) {
-		handlerLogger.Warn("Request header \"Content-Type\" does not contain \"text/plain\"",
+		handlerLogger.Warn("Request header \"Content-Type\" does not contain \"application/json\" or \"application/x-gzip\"",
 			zap.Any(HeaderKey, r.Header),
 		)
 		w.WriteHeader(http.StatusBadRequest)
@@ -166,7 +166,6 @@ func (ah *AppHandler) APIGetOrCreateURL(w http.ResponseWriter, r *http.Request) 
 			zap.Any(ResponseKey, resp),
 			zap.Error(err),
 		)
-		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 }
