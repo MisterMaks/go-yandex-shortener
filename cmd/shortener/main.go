@@ -82,7 +82,7 @@ func main() {
 
 	db, err := connectPostgres(config.DatabaseDSN)
 	if err != nil {
-		logger.Log.Fatal("Failed to connect to Postgres",
+		logger.Log.Error("Failed to connect to Postgres",
 			zap.Error(err),
 		)
 	}
