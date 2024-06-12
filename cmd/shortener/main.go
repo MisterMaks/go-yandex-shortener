@@ -7,31 +7,43 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 
 	appDeliveryInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/delivery"
 	appRepoInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/repo"
 	appUsecaseInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/usecase"
+	"github.com/MisterMaks/go-yandex-shortener/internal/gzip"
+	"github.com/MisterMaks/go-yandex-shortener/internal/logger"
 )
 
 const (
 	Addr                          string = "localhost:8080"
 	ResultAddrPrefix              string = "http://localhost:8080/"
+	FileStoragePath               string = "/tmp/short-url-db.json"
 	CountRegenerationsForLengthID uint   = 5
 	LengthID                      uint   = 5
 	MaxLengthID                   uint   = 20
+	LogLevel                      string = "INFO"
+
+	ConfigKey string = "config"
+	AddrKey   string = "addr"
 )
 
 type AppHandlerInterface interface {
 	GetOrCreateURL(w http.ResponseWriter, r *http.Request)
+	APIGetOrCreateURL(w http.ResponseWriter, r *http.Request)
 	RedirectToURL(w http.ResponseWriter, r *http.Request)
 }
 
 func shortenerRouter(appHandler AppHandlerInterface, redirectPathPrefix string) chi.Router {
 	r := chi.NewRouter()
+	r.Use(logger.RequestLogger)
 	redirectPathPrefix = strings.TrimPrefix(redirectPathPrefix, "/")
+	r.Get(`/`+redirectPathPrefix+`{id}`, appHandler.RedirectToURL)
 	r.Route(`/`, func(r chi.Router) {
+		r.Use(gzip.GzipMiddleware)
 		r.Post(`/`, appHandler.GetOrCreateURL)
-		r.Get(`/`+redirectPathPrefix+`{id}`, appHandler.RedirectToURL)
+		r.Post(`/api/shorten`, appHandler.APIGetOrCreateURL)
 	})
 	return r
 }
@@ -42,9 +54,23 @@ func main() {
 	if err != nil {
 		log.Fatalln("CRITICAL\tFailed to parse flags. Error:", err)
 	}
-	log.Println("INFO\tConfig:", config)
 
-	appRepo := appRepoInternal.NewAppRepoInmem()
+	err = logger.Initialize(config.LogLevel)
+	if err != nil {
+		log.Fatalln("CRITICAL\tFailed to init logger. Error:", err)
+	}
+
+	logger.Log.Info("Config data",
+		zap.Any(ConfigKey, config),
+	)
+
+	appRepo, err := appRepoInternal.NewAppRepoInmem(config.FileStoragePath)
+	if err != nil {
+		logger.Log.Fatal("Failed to create appRepo",
+			zap.Error(err),
+		)
+	}
+	defer appRepo.Close()
 	appUsecase, err := appUsecaseInternal.NewAppUsecase(
 		appRepo,
 		config.BaseURL,
@@ -53,22 +79,30 @@ func main() {
 		MaxLengthID,
 	)
 	if err != nil {
-		log.Fatalln("CRITICAL\tFailed to create appUsecase. Error:", err)
+		logger.Log.Fatal("Failed to create appUsecase",
+			zap.Error(err),
+		)
 	}
 
 	appHandler := appDeliveryInternal.NewAppHandler(appUsecase)
 
 	u, err := url.ParseRequestURI(config.BaseURL)
 	if err != nil {
-		log.Fatalln("CRITICAL\tFailed to parse config result addr prefix. Error:", err)
+		logger.Log.Fatal("Failed to parse config result addr prefix",
+			zap.Error(err),
+		)
 	}
 	redirectPathPrefix := u.Path
 
 	r := shortenerRouter(appHandler, redirectPathPrefix)
 
-	log.Printf("INFO\tServer running on %s ...\n", config.ServerAddress)
+	logger.Log.Info("Server running",
+		zap.String(AddrKey, config.ServerAddress),
+	)
 	err = http.ListenAndServe(config.ServerAddress, r)
 	if err != nil {
-		log.Fatalln("CRITICAL\tFailed to start server. Error:", err)
+		logger.Log.Fatal("Failed to start server",
+			zap.Error(err),
+		)
 	}
 }

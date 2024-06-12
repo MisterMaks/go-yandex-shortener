@@ -10,15 +10,38 @@ import (
 var ErrURLNotFound = errors.New("url not found")
 
 type AppRepoInmem struct {
-	urls []*app.URL
-	mu   sync.RWMutex
+	urls     []*app.URL
+	mu       sync.RWMutex
+	producer *producer
 }
 
-func NewAppRepoInmem() *AppRepoInmem {
-	return &AppRepoInmem{
-		urls: []*app.URL{},
-		mu:   sync.RWMutex{},
+func NewAppRepoInmem(filename string) (*AppRepoInmem, error) {
+	if filename == "" {
+		return &AppRepoInmem{
+			urls:     []*app.URL{},
+			mu:       sync.RWMutex{},
+			producer: nil,
+		}, nil
 	}
+
+	consumer, err := newConsumer(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer consumer.close()
+	urls, err := consumer.readURLs()
+	if err != nil {
+		return nil, err
+	}
+	producer, err := newProducer(filename)
+	if err != nil {
+		return nil, err
+	}
+	return &AppRepoInmem{
+		urls:     urls,
+		mu:       sync.RWMutex{},
+		producer: producer,
+	}, nil
 }
 
 func (ari *AppRepoInmem) GetOrCreateURL(id, rawURL string) (*app.URL, error) {
@@ -34,6 +57,11 @@ func (ari *AppRepoInmem) GetOrCreateURL(id, rawURL string) (*app.URL, error) {
 		return nil, err
 	}
 	ari.urls = append(ari.urls, url)
+
+	if ari.producer != nil {
+		ari.producer.writeURL(url)
+	}
+
 	return url, nil
 }
 
@@ -57,4 +85,8 @@ func (ari *AppRepoInmem) CheckIDExistence(id string) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+func (ari *AppRepoInmem) Close() error {
+	return ari.producer.close()
 }

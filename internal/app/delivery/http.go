@@ -3,17 +3,31 @@ package delivery
 import (
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 
+	"encoding/json"
+
 	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
+	"github.com/MisterMaks/go-yandex-shortener/internal/logger"
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 )
 
 const (
-	ContentTypeKey string = "Content-Type"
-	TextPlainKey   string = "text/plain"
+	ContentTypeKey     string = "Content-Type"
+	TextPlainKey       string = "text/plain"
+	ApplicationJSONKey string = "application/json"
+
+	MethodKey         string = "method"
+	HeaderKey         string = "header"
+	RequestBodyKey    string = "request_body"
+	RequestBodyStrKey string = "request_body_str"
+	URLIDKey          string = "url_id"
+	URLKey            string = "url"
+	ShortURLKey       string = "short_url"
+	RequestPathIDKey  string = "request_path_id"
+	ResponseKey       string = "response"
 )
 
 type AppUsecaseInterface interface {
@@ -31,23 +45,23 @@ func NewAppHandler(appUsecase AppUsecaseInterface) *AppHandler {
 }
 
 func (ah *AppHandler) GetOrCreateURL(w http.ResponseWriter, r *http.Request) {
-	log.Println("INFO\tAppHandler.Create()")
+	handlerLogger := logger.GetLoggerWithRequestID(r.Context())
+
+	handlerLogger.Info("Creating or getting url")
 
 	if r.Method != http.MethodPost {
-		log.Printf("WARNING\tBad request method. Method: %s\n", r.Method)
+		handlerLogger.Warn("Request method is not POST",
+			zap.String(MethodKey, r.Method),
+		)
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	isTextPlain := false
-	for _, value := range r.Header.Values(ContentTypeKey) {
-		if strings.Contains(value, TextPlainKey) {
-			isTextPlain = true
-			break
-		}
-	}
-	if !isTextPlain {
-		log.Printf("WARNING\tBad request header '%s' is not contain '%s'. '%s': '%s'\n", ContentTypeKey, TextPlainKey, ContentTypeKey, r.Header.Get(ContentTypeKey))
+	contentType := r.Header.Get(ContentTypeKey)
+	if !(strings.Contains(contentType, TextPlainKey) || strings.Contains(contentType, "application/x-gzip")) {
+		handlerLogger.Warn("Request header \"Content-Type\" does not contain \"text/plain\" or \"application/x-gzip\"",
+			zap.Any(HeaderKey, r.Header),
+		)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(fmt.Sprintf("Header '%s' is not contain '%s'", ContentTypeKey, TextPlainKey)))
 		return
@@ -55,7 +69,10 @@ func (ah *AppHandler) GetOrCreateURL(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Printf("WARNING\tBad request. Request body: %s\n", r.Body)
+		handlerLogger.Warn("Bad request",
+			zap.Any(RequestBodyKey, r.Body),
+			zap.Error(err),
+		)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -64,43 +81,131 @@ func (ah *AppHandler) GetOrCreateURL(w http.ResponseWriter, r *http.Request) {
 
 	url, err := ah.AppUsecase.GetOrCreateURL(bodyStr)
 	if err != nil {
-		log.Printf("WARNING\tBad request. Request body string: %s. Error: %v\n", bodyStr, err)
+		handlerLogger.Warn("Bad request",
+			zap.String(RequestBodyStrKey, bodyStr),
+			zap.Error(err),
+		)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	shortURL := ah.AppUsecase.GenerateShortURL(url.ID)
-	log.Printf("INFO\tURL ID: %s, URL: %s, short URL: %s\n", url.ID, url.URL, shortURL)
+	handlerLogger.Info("Short URL created",
+		zap.String(URLIDKey, url.ID),
+		zap.String(URLKey, url.URL),
+		zap.String(ShortURLKey, shortURL),
+	)
 
 	w.Header().Set(ContentTypeKey, TextPlainKey)
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(shortURL))
 }
 
+func (ah *AppHandler) APIGetOrCreateURL(w http.ResponseWriter, r *http.Request) {
+	handlerLogger := logger.GetLoggerWithRequestID(r.Context())
+
+	handlerLogger.Info("Creating or getting url using API")
+
+	if r.Method != http.MethodPost {
+		handlerLogger.Warn("Request method is not POST",
+			zap.String(MethodKey, r.Method),
+		)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	contentType := r.Header.Get(ContentTypeKey)
+	if !(strings.Contains(contentType, ApplicationJSONKey) || strings.Contains(contentType, "application/x-gzip")) {
+		handlerLogger.Warn("Request header \"Content-Type\" does not contain \"application/json\" or \"application/x-gzip\"",
+			zap.Any(HeaderKey, r.Header),
+		)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf("Header '%s' is not contain '%s'", ContentTypeKey, ApplicationJSONKey)))
+		return
+	}
+
+	type Request struct {
+		URL string `json:"url"`
+	}
+
+	var req Request
+	dec := json.NewDecoder(r.Body)
+	err := dec.Decode(&req)
+	if err != nil {
+		handlerLogger.Warn("Bad request",
+			zap.Any(RequestBodyKey, r.Body),
+			zap.Error(err),
+		)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	url, err := ah.AppUsecase.GetOrCreateURL(req.URL)
+	if err != nil {
+		handlerLogger.Warn("Bad request",
+			zap.String(URLKey, req.URL),
+			zap.Error(err),
+		)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	shortURL := ah.AppUsecase.GenerateShortURL(url.ID)
+	w.Header().Set(ContentTypeKey, ApplicationJSONKey)
+	w.WriteHeader(http.StatusCreated)
+
+	type Response struct {
+		Result string `json:"result"`
+	}
+
+	resp := Response{Result: shortURL}
+	enc := json.NewEncoder(w)
+	err = enc.Encode(resp)
+	if err != nil {
+		handlerLogger.Warn("Bad request",
+			zap.Any(ResponseKey, resp),
+			zap.Error(err),
+		)
+		return
+	}
+}
+
 func (ah *AppHandler) RedirectToURL(w http.ResponseWriter, r *http.Request) {
-	log.Println("INFO\tAppHandler.Get()")
+	handlerLogger := logger.GetLoggerWithRequestID(r.Context())
+
+	handlerLogger.Info("Redirecting to URL")
 
 	if r.Method != http.MethodGet {
-		log.Printf("WARNING\tBad request method. Method: %s\n", r.Method)
+		handlerLogger.Warn("Request method is not GET",
+			zap.String(MethodKey, r.Method),
+		)
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
 	id := chi.URLParam(r, "id")
 	if id == "" {
-		log.Printf("WARNING\tBad request. Request path id: %s\n", id)
+		handlerLogger.Warn("Bad request",
+			zap.String(RequestPathIDKey, id),
+		)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	url, err := ah.AppUsecase.GetURL(id)
 	if err != nil {
-		log.Printf("WARNING\tBad request. Request path id: %s. Error: %v\n", id, err)
+		handlerLogger.Warn("Bad request",
+			zap.String(RequestPathIDKey, id),
+			zap.Error(err),
+		)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	log.Printf("INFO\tURL ID: %s, URL: %s\n", url.ID, url.URL)
+	handlerLogger.Info("Found short URL",
+		zap.String(URLIDKey, url.ID),
+		zap.String(URLKey, url.URL),
+	)
 
 	http.Redirect(w, r, url.URL, http.StatusTemporaryRedirect)
 }
