@@ -53,15 +53,7 @@ func shortenerRouter(appHandler AppHandlerInterface, redirectPathPrefix string) 
 }
 
 func connectPostgres(dsn string) (*sql.DB, error) {
-	db, err := sql.Open("pgx", dsn)
-	if err != nil {
-		return nil, err
-	}
-	err = db.Ping()
-	if err != nil {
-		return nil, err
-	}
-	return db, nil
+	return sql.Open("pgx", dsn)
 }
 
 func main() {
@@ -82,7 +74,7 @@ func main() {
 
 	db, err := connectPostgres(config.DatabaseDSN)
 	if err != nil {
-		logger.Log.Error("Failed to connect to Postgres",
+		logger.Log.Fatal("Failed to connect to Postgres",
 			zap.Error(err),
 		)
 	}
