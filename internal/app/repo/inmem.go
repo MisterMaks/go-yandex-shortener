@@ -52,10 +52,7 @@ func (ari *AppRepoInmem) GetOrCreateURL(id, rawURL string) (*app.URL, error) {
 			return url, nil
 		}
 	}
-	url, err := app.NewURL(id, rawURL)
-	if err != nil {
-		return nil, err
-	}
+	url := &app.URL{ID: id, URL: rawURL}
 	ari.urls = append(ari.urls, url)
 
 	if ari.producer != nil {

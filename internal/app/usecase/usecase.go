@@ -4,14 +4,15 @@ import (
 	"errors"
 	"math/rand"
 	"net/url"
+	"regexp"
 
-	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
+	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 	appRepo "github.com/MisterMaks/go-yandex-shortener/internal/app/repo"
 )
 
 const (
 	Symbols      string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	CountSymbols int    = len(Symbols)
+	CountSymbols        = len(Symbols)
 )
 
 var (
@@ -30,6 +31,22 @@ func generateID(length uint) (string, error) {
 		b[i] = Symbols[rand.Intn(CountSymbols)]
 	}
 	return string(b), nil
+}
+
+func parseURL(rawURL string) (string, error) {
+	matched, err := regexp.MatchString("^https?://", rawURL)
+	if err != nil {
+		return "", err
+	}
+	parsedRequestURI := rawURL
+	if !matched {
+		parsedRequestURI = "http://" + rawURL
+	}
+	_, err = url.ParseRequestURI(parsedRequestURI)
+	if err != nil {
+		return "", err
+	}
+	return parsedRequestURI, nil
 }
 
 type AppRepoInterface interface {
@@ -81,7 +98,11 @@ func (au *AppUsecase) GetOrCreateURL(rawURL string) (*app.URL, error) {
 		return nil, ErrMaxLengthIDLessLengthID
 	}
 
-	var err error
+	_, err := parseURL(rawURL)
+	if err != nil {
+		return nil, err
+	}
+
 	var checked bool
 	var id string
 	for i := 0; i < int(au.CountRegenerationsForLengthID); i++ {
@@ -90,19 +111,22 @@ func (au *AppUsecase) GetOrCreateURL(rawURL string) (*app.URL, error) {
 			return nil, err
 		}
 		checked, err = au.AppRepo.CheckIDExistence(id)
-		if err != nil || checked {
+		if err != nil {
+			return nil, err
+		}
+		if checked {
 			continue
 		}
 		break
 	}
 
-	if err != nil || checked {
+	if checked {
 		au.LengthID++
-		au.GetOrCreateURL(rawURL)
+		return au.GetOrCreateURL(rawURL)
 	}
 
-	url, err := au.AppRepo.GetOrCreateURL(id, rawURL)
-	return url, err
+	appURL, err := au.AppRepo.GetOrCreateURL(id, rawURL)
+	return appURL, err
 }
 
 func (au *AppUsecase) GetURL(id string) (*app.URL, error) {

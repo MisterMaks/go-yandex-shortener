@@ -66,9 +66,9 @@ func Test_generateID(t *testing.T) {
 
 type testAppRepo struct{}
 
-func (tar *testAppRepo) GetOrCreateURL(id, rawURL string) (*app.URL, error) {
-	url, err := app.NewURL(TestURLID, rawURL)
-	return url, err
+func (tar *testAppRepo) GetOrCreateURL(_, rawURL string) (*app.URL, error) {
+	url := &app.URL{ID: TestURLID, URL: rawURL}
+	return url, nil
 }
 
 func (tar *testAppRepo) GetURL(id string) (*app.URL, error) {

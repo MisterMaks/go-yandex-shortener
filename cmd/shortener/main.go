@@ -1,21 +1,22 @@
 package main
 
 import (
+	"context"
 	"database/sql"
+	"github.com/pressly/goose/v3"
 	"log"
 	"net/http"
 	"net/url"
 	"strings"
-
-	"github.com/go-chi/chi/v5"
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"go.uber.org/zap"
 
 	appDeliveryInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/delivery"
 	appRepoInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/repo"
 	appUsecaseInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/usecase"
 	"github.com/MisterMaks/go-yandex-shortener/internal/gzip"
 	"github.com/MisterMaks/go-yandex-shortener/internal/logger"
+	"github.com/go-chi/chi/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"go.uber.org/zap"
 )
 
 const (
@@ -30,6 +31,22 @@ const (
 	ConfigKey string = "config"
 	AddrKey   string = "addr"
 )
+
+func migrate(dsn string) error {
+	db, err := goose.OpenDBWithDriver("postgres", dsn)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			logger.Log.Fatal("Failed to close DB",
+				zap.Error(err),
+			)
+		}
+	}()
+	ctx := context.Background()
+	return goose.RunContext(ctx, "up", db, "../../migrations")
+}
 
 type AppHandlerInterface interface {
 	GetOrCreateURL(w http.ResponseWriter, r *http.Request)
@@ -82,20 +99,29 @@ func main() {
 		zap.Any(ConfigKey, config),
 	)
 
+	logger.Log.Info("Applying migrations")
+	err = migrate(config.DatabaseDSN)
+	if err != nil {
+		logger.Log.Fatal("Failed to apply migrations",
+			zap.Error(err),
+		)
+	}
+
 	db, err := connectPostgres(config.DatabaseDSN)
 	if err != nil {
 		logger.Log.Fatal("Failed to connect to Postgres",
 			zap.Error(err),
 		)
 	}
+	defer db.Close()
 
-	appRepo, err := appRepoInternal.NewAppRepoInmem(config.FileStoragePath)
+	appRepoInmem, err := appRepoInternal.NewAppRepoInmem(config.FileStoragePath)
 	if err != nil {
-		logger.Log.Fatal("Failed to create appRepo",
+		logger.Log.Fatal("Failed to create appRepoInmem",
 			zap.Error(err),
 		)
 	}
-	defer appRepo.Close()
+	defer appRepoInmem.Close()
 
 	appRepoPostgres, err := appRepoInternal.NewAppRepoPostgres(db)
 	if err != nil {
@@ -105,7 +131,7 @@ func main() {
 	}
 
 	appUsecase, err := appUsecaseInternal.NewAppUsecase(
-		appRepo,
+		appRepoPostgres,
 		config.BaseURL,
 		CountRegenerationsForLengthID,
 		LengthID,

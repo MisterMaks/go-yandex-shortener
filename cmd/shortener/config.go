@@ -1,17 +1,12 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"net/url"
 	"os"
 	"strings"
 
 	"github.com/caarlos0/env/v11"
-)
-
-var (
-	ErrInvalidBaseURL = errors.New("invalid Base URL")
 )
 
 type Config struct {
