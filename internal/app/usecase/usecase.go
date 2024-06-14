@@ -1,13 +1,13 @@
 package usecase
 
 import (
+	"database/sql"
 	"errors"
 	"math/rand"
 	"net/url"
 	"regexp"
 
 	"github.com/MisterMaks/go-yandex-shortener/internal/app"
-	appRepo "github.com/MisterMaks/go-yandex-shortener/internal/app/repo"
 )
 
 const (
@@ -63,10 +63,10 @@ type AppUsecase struct {
 	LengthID                      uint
 	MaxLengthID                   uint
 
-	AppRepoPostgres *appRepo.AppRepoPostgres
+	db *sql.DB
 }
 
-func NewAppUsecase(appRepo AppRepoInterface, baseURL string, countRegenerationsForLengthID, lengthID, maxLengthID uint, appRepoPostgres *appRepo.AppRepoPostgres) (*AppUsecase, error) {
+func NewAppUsecase(appRepo AppRepoInterface, baseURL string, countRegenerationsForLengthID, lengthID, maxLengthID uint, db *sql.DB) (*AppUsecase, error) {
 	if lengthID == 0 {
 		return nil, ErrZeroLengthID
 	}
@@ -89,7 +89,7 @@ func NewAppUsecase(appRepo AppRepoInterface, baseURL string, countRegenerationsF
 		CountRegenerationsForLengthID: countRegenerationsForLengthID,
 		LengthID:                      lengthID,
 		MaxLengthID:                   maxLengthID,
-		AppRepoPostgres:               appRepoPostgres,
+		db:                            db,
 	}, nil
 }
 
@@ -138,5 +138,5 @@ func (au *AppUsecase) GenerateShortURL(id string) string {
 }
 
 func (au *AppUsecase) Ping() error {
-	return au.AppRepoPostgres.Ping()
+	return au.db.Ping()
 }

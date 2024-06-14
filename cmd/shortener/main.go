@@ -130,13 +130,19 @@ func main() {
 		)
 	}
 
+	var appRepo appUsecaseInternal.AppRepoInterface
+	appRepo = appRepoPostgres
+	if config.DatabaseDSN == "" {
+		appRepo = appRepoInmem
+	}
+
 	appUsecase, err := appUsecaseInternal.NewAppUsecase(
-		appRepoPostgres,
+		appRepo,
 		config.BaseURL,
 		CountRegenerationsForLengthID,
 		LengthID,
 		MaxLengthID,
-		appRepoPostgres,
+		db,
 	)
 	if err != nil {
 		logger.Log.Fatal("Failed to create appUsecase",
