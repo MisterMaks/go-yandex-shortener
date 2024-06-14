@@ -45,7 +45,7 @@ func migrate(dsn string) error {
 		}
 	}()
 	ctx := context.Background()
-	return goose.RunContext(ctx, "up", db, "../../migrations")
+	return goose.RunContext(ctx, "up", db, "./migrations/")
 }
 
 type AppHandlerInterface interface {
