@@ -8,7 +8,7 @@ import (
 
 	"encoding/json"
 
-	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
+	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 	"github.com/MisterMaks/go-yandex-shortener/internal/logger"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"

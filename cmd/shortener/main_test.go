@@ -18,7 +18,6 @@ const (
 	TestValidURL   string = "valid_url"
 	TestInvalidURL string = "invalid_url"
 	TestID         string = "1"
-	TestHost       string = "http://example.com"
 	ContentTypeKey string = "Content-Type"
 	TextPlainKey   string = "text/plain"
 )

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
+	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 	"github.com/stretchr/testify/assert"
 )
 

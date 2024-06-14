@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sync"
 
-	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
+	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 )
 
 var ErrURLNotFound = errors.New("url not found")

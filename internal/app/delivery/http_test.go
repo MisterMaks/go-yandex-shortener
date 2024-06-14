@@ -9,7 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
+	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
