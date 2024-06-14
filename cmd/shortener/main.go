@@ -99,14 +99,6 @@ func main() {
 		zap.Any(ConfigKey, config),
 	)
 
-	logger.Log.Info("Applying migrations")
-	err = migrate(config.DatabaseDSN)
-	if err != nil {
-		logger.Log.Fatal("Failed to apply migrations",
-			zap.Error(err),
-		)
-	}
-
 	db, err := connectPostgres(config.DatabaseDSN)
 	if err != nil {
 		logger.Log.Fatal("Failed to connect to Postgres",
@@ -115,25 +107,32 @@ func main() {
 	}
 	defer db.Close()
 
-	appRepoInmem, err := appRepoInternal.NewAppRepoInmem(config.FileStoragePath)
-	if err != nil {
-		logger.Log.Fatal("Failed to create appRepoInmem",
-			zap.Error(err),
-		)
-	}
-	defer appRepoInmem.Close()
-
-	appRepoPostgres, err := appRepoInternal.NewAppRepoPostgres(db)
-	if err != nil {
-		logger.Log.Fatal("Failed to create appRepoPostgres",
-			zap.Error(err),
-		)
-	}
-
 	var appRepo appUsecaseInternal.AppRepoInterface
-	appRepo = appRepoPostgres
-	if config.DatabaseDSN == "" {
+	switch config.DatabaseDSN {
+	case "":
+		appRepoInmem, err := appRepoInternal.NewAppRepoInmem(config.FileStoragePath)
+		if err != nil {
+			logger.Log.Fatal("Failed to create appRepoInmem",
+				zap.Error(err),
+			)
+		}
+		defer appRepoInmem.Close()
 		appRepo = appRepoInmem
+	default:
+		logger.Log.Info("Applying migrations")
+		err = migrate(config.DatabaseDSN)
+		if err != nil {
+			logger.Log.Fatal("Failed to apply migrations",
+				zap.Error(err),
+			)
+		}
+		appRepoPostgres, err := appRepoInternal.NewAppRepoPostgres(db)
+		if err != nil {
+			logger.Log.Fatal("Failed to create appRepoPostgres",
+				zap.Error(err),
+			)
+		}
+		appRepo = appRepoPostgres
 	}
 
 	appUsecase, err := appUsecaseInternal.NewAppUsecase(
