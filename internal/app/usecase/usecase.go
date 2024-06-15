@@ -53,6 +53,7 @@ type AppRepoInterface interface {
 	GetOrCreateURL(id, rawURL string) (*app.URL, error)
 	GetURL(id string) (*app.URL, error)
 	CheckIDExistence(id string) (bool, error)
+	GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error)
 }
 
 type AppUsecase struct {
@@ -93,26 +94,22 @@ func NewAppUsecase(appRepo AppRepoInterface, baseURL string, countRegenerationsF
 	}, nil
 }
 
-func (au *AppUsecase) GetOrCreateURL(rawURL string) (*app.URL, error) {
+func (au *AppUsecase) generateID() (string, error) {
 	if au.LengthID > au.MaxLengthID {
-		return nil, ErrMaxLengthIDLessLengthID
+		return "", ErrMaxLengthIDLessLengthID
 	}
 
-	_, err := parseURL(rawURL)
-	if err != nil {
-		return nil, err
-	}
-
+	var err error
 	var checked bool
 	var id string
 	for i := 0; i < int(au.CountRegenerationsForLengthID); i++ {
 		id, err = generateID(au.LengthID)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 		checked, err = au.AppRepo.CheckIDExistence(id)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 		if checked {
 			continue
@@ -122,9 +119,21 @@ func (au *AppUsecase) GetOrCreateURL(rawURL string) (*app.URL, error) {
 
 	if checked {
 		au.LengthID++
-		return au.GetOrCreateURL(rawURL)
+		return au.generateID()
 	}
 
+	return id, nil
+}
+
+func (au *AppUsecase) GetOrCreateURL(rawURL string) (*app.URL, error) {
+	_, err := parseURL(rawURL)
+	if err != nil {
+		return nil, err
+	}
+	id, err := au.generateID()
+	if err != nil {
+		return nil, err
+	}
 	appURL, err := au.AppRepo.GetOrCreateURL(id, rawURL)
 	return appURL, err
 }
@@ -139,4 +148,34 @@ func (au *AppUsecase) GenerateShortURL(id string) string {
 
 func (au *AppUsecase) Ping() error {
 	return au.db.Ping()
+}
+
+func (au *AppUsecase) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL) ([]app.ResponseBatchURL, error) {
+	urls := []*app.URL{}
+	for _, rbu := range requestBatchURLs {
+		id, err := au.generateID()
+		if err != nil {
+			return nil, err
+		}
+		urls = append(urls, &app.URL{ID: id, URL: rbu.OriginalURL})
+	}
+
+	urls, err := au.AppRepo.GetOrCreateURLs(urls)
+	if err != nil {
+		return nil, err
+	}
+
+	responseBatchURLs := []app.ResponseBatchURL{}
+	for _, appURL := range urls {
+		for _, rbu := range requestBatchURLs {
+			if appURL.URL == rbu.OriginalURL {
+				responseBatchURLs = append(responseBatchURLs, app.ResponseBatchURL{
+					CorrelationID: rbu.CorrelationID,
+					ShortURL:      au.GenerateShortURL(appURL.ID),
+				})
+			}
+		}
+	}
+
+	return responseBatchURLs, nil
 }

@@ -2,6 +2,7 @@ package repo
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 )
 
@@ -51,4 +52,44 @@ func (arp *AppRepoPostgres) CheckIDExistence(id string) (bool, error) {
 
 func (arp *AppRepoPostgres) Ping() error {
 	return arp.db.Ping()
+}
+
+func (arp *AppRepoPostgres) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error) {
+	query := `INSERT INTO url (url, url_id) VALUES `
+	args := []interface{}{}
+	lenURLs := len(urls)
+	for i, url := range urls {
+		query += fmt.Sprintf("($%d, $%d)", i*2+1, i*2+2)
+		args = append(args, url.URL, url.ID)
+		if i < lenURLs-1 {
+			query += ", "
+		}
+	}
+	query += " ON CONFLICT (url) DO UPDATE SET url = EXCLUDED.url RETURNING url, url_id;"
+
+	rows, err := arp.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	urls = nil
+	for rows.Next() {
+		var (
+			id  string
+			url string
+		)
+		err = rows.Scan(&url, &id)
+		if err != nil {
+			return nil, err
+		}
+		urls = append(urls, &app.URL{ID: id, URL: url})
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return urls, err
 }

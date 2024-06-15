@@ -25,6 +25,7 @@ const (
 	RequestBodyStrKey string = "request_body_str"
 	URLIDKey          string = "url_id"
 	URLKey            string = "url"
+	URLsKey           string = "urls"
 	ShortURLKey       string = "short_url"
 	RequestPathIDKey  string = "request_path_id"
 	ResponseKey       string = "response"
@@ -35,6 +36,7 @@ type AppUsecaseInterface interface {
 	GetURL(id string) (*app.URL, error)
 	GenerateShortURL(id string) string
 	Ping() error
+	GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL) ([]app.ResponseBatchURL, error)
 }
 
 type AppHandler struct {
@@ -48,7 +50,7 @@ func NewAppHandler(appUsecase AppUsecaseInterface) *AppHandler {
 func (ah *AppHandler) GetOrCreateURL(w http.ResponseWriter, r *http.Request) {
 	handlerLogger := logger.GetLoggerWithRequestID(r.Context())
 
-	handlerLogger.Info("Creating or getting url")
+	handlerLogger.Info("Creating or getting URL")
 
 	if r.Method != http.MethodPost {
 		handlerLogger.Warn("Request method is not POST",
@@ -105,7 +107,7 @@ func (ah *AppHandler) GetOrCreateURL(w http.ResponseWriter, r *http.Request) {
 func (ah *AppHandler) APIGetOrCreateURL(w http.ResponseWriter, r *http.Request) {
 	handlerLogger := logger.GetLoggerWithRequestID(r.Context())
 
-	handlerLogger.Info("Creating or getting url using API")
+	handlerLogger.Info("Creating or getting URL using API")
 
 	if r.Method != http.MethodPost {
 		handlerLogger.Warn("Request method is not POST",
@@ -233,4 +235,63 @@ func (ah *AppHandler) Ping(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func (ah *AppHandler) APIGetOrCreateURLs(w http.ResponseWriter, r *http.Request) {
+	handlerLogger := logger.GetLoggerWithRequestID(r.Context())
+
+	handlerLogger.Info("Creating or getting URLs batch using API")
+
+	if r.Method != http.MethodPost {
+		handlerLogger.Warn("Request method is not POST",
+			zap.String(MethodKey, r.Method),
+		)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	contentType := r.Header.Get(ContentTypeKey)
+	if !(strings.Contains(contentType, ApplicationJSONKey) || strings.Contains(contentType, "application/x-gzip")) {
+		handlerLogger.Warn("Request header \"Content-Type\" does not contain \"application/json\" or \"application/x-gzip\"",
+			zap.Any(HeaderKey, r.Header),
+		)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf("Header '%s' is not contain '%s'", ContentTypeKey, ApplicationJSONKey)))
+		return
+	}
+
+	var req []app.RequestBatchURL
+	dec := json.NewDecoder(r.Body)
+	err := dec.Decode(&req)
+	if err != nil {
+		handlerLogger.Warn("Bad request",
+			zap.Any(RequestBodyKey, r.Body),
+			zap.Error(err),
+		)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	resp, err := ah.AppUsecase.GetOrCreateURLs(req)
+	if err != nil {
+		handlerLogger.Warn("Bad request",
+			zap.Any(URLsKey, req),
+			zap.Error(err),
+		)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set(ContentTypeKey, ApplicationJSONKey)
+	w.WriteHeader(http.StatusCreated)
+
+	enc := json.NewEncoder(w)
+	err = enc.Encode(resp)
+	if err != nil {
+		handlerLogger.Warn("Bad request",
+			zap.Any(ResponseKey, resp),
+			zap.Error(err),
+		)
+		return
+	}
 }

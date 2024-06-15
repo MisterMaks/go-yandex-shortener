@@ -86,6 +86,11 @@ func (tar *testAppRepo) CheckIDExistence(id string) (bool, error) {
 	return id == TestURLID, nil
 }
 
+// TODO
+func (tar *testAppRepo) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error) {
+	return []*app.URL{}, nil
+}
+
 func TestNewAppUsecase(t *testing.T) {
 	type args struct {
 		resultAddrPrefix              string

@@ -53,6 +53,7 @@ type AppHandlerInterface interface {
 	APIGetOrCreateURL(w http.ResponseWriter, r *http.Request)
 	RedirectToURL(w http.ResponseWriter, r *http.Request)
 	Ping(w http.ResponseWriter, r *http.Request)
+	APIGetOrCreateURLs(w http.ResponseWriter, r *http.Request)
 }
 
 func shortenerRouter(appHandler AppHandlerInterface, redirectPathPrefix string) chi.Router {
@@ -65,6 +66,7 @@ func shortenerRouter(appHandler AppHandlerInterface, redirectPathPrefix string) 
 		r.Use(gzip.GzipMiddleware)
 		r.Post(`/`, appHandler.GetOrCreateURL)
 		r.Post(`/api/shorten`, appHandler.APIGetOrCreateURL)
+		r.Post(`/api/shorten/batch`, appHandler.APIGetOrCreateURLs)
 	})
 	return r
 }

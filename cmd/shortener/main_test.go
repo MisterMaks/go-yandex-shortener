@@ -59,6 +59,11 @@ func (tau *testAppUsecase) Ping() error {
 	return nil
 }
 
+// TODO
+func (tau *testAppUsecase) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL) ([]app.ResponseBatchURL, error) {
+	return []app.ResponseBatchURL{}, nil
+}
+
 func testRequest(
 	t *testing.T,
 	ts *httptest.Server,
