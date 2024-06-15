@@ -125,17 +125,17 @@ func (au *AppUsecase) generateID() (string, error) {
 	return id, nil
 }
 
-func (au *AppUsecase) GetOrCreateURL(rawURL string) (*app.URL, error) {
+func (au *AppUsecase) GetOrCreateURL(rawURL string) (*app.URL, bool, error) {
 	_, err := parseURL(rawURL)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	id, err := au.generateID()
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	appURL, err := au.AppRepo.GetOrCreateURL(id, rawURL)
-	return appURL, err
+	return appURL, appURL.ID != id, err
 }
 
 func (au *AppUsecase) GetURL(id string) (*app.URL, error) {

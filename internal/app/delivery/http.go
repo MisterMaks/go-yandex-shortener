@@ -32,7 +32,7 @@ const (
 )
 
 type AppUsecaseInterface interface {
-	GetOrCreateURL(rawURL string) (*app.URL, error)
+	GetOrCreateURL(rawURL string) (*app.URL, bool, error)
 	GetURL(id string) (*app.URL, error)
 	GenerateShortURL(id string) string
 	Ping() error
@@ -82,7 +82,7 @@ func (ah *AppHandler) GetOrCreateURL(w http.ResponseWriter, r *http.Request) {
 
 	bodyStr := string(body)
 
-	url, err := ah.AppUsecase.GetOrCreateURL(bodyStr)
+	url, exists, err := ah.AppUsecase.GetOrCreateURL(bodyStr)
 	if err != nil {
 		handlerLogger.Warn("Bad request",
 			zap.String(RequestBodyStrKey, bodyStr),
@@ -100,7 +100,11 @@ func (ah *AppHandler) GetOrCreateURL(w http.ResponseWriter, r *http.Request) {
 	)
 
 	w.Header().Set(ContentTypeKey, TextPlainKey)
-	w.WriteHeader(http.StatusCreated)
+	if exists {
+		w.WriteHeader(http.StatusConflict)
+	} else {
+		w.WriteHeader(http.StatusCreated)
+	}
 	w.Write([]byte(shortURL))
 }
 
@@ -143,7 +147,7 @@ func (ah *AppHandler) APIGetOrCreateURL(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	url, err := ah.AppUsecase.GetOrCreateURL(req.URL)
+	url, exists, err := ah.AppUsecase.GetOrCreateURL(req.URL)
 	if err != nil {
 		handlerLogger.Warn("Bad request",
 			zap.String(URLKey, req.URL),
@@ -155,7 +159,11 @@ func (ah *AppHandler) APIGetOrCreateURL(w http.ResponseWriter, r *http.Request) 
 
 	shortURL := ah.AppUsecase.GenerateShortURL(url.ID)
 	w.Header().Set(ContentTypeKey, ApplicationJSONKey)
-	w.WriteHeader(http.StatusCreated)
+	if exists {
+		w.WriteHeader(http.StatusConflict)
+	} else {
+		w.WriteHeader(http.StatusCreated)
+	}
 
 	type Response struct {
 		Result string `json:"result"`

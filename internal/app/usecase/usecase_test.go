@@ -285,7 +285,7 @@ func TestAppUsecase_GetOrCreateURL(t *testing.T) {
 				LengthID:                      tt.fields.lengthID,
 				MaxLengthID:                   tt.fields.maxLengthID,
 			}
-			url, err := au.GetOrCreateURL(tt.args.rawURL)
+			url, _, err := au.GetOrCreateURL(tt.args.rawURL)
 			assert.ErrorIs(t, err, tt.want.err)
 			assert.Equal(t, tt.want.url, url)
 		})
