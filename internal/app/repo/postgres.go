@@ -3,6 +3,7 @@ package repo
 import (
 	"database/sql"
 	"fmt"
+
 	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 )
 
@@ -56,7 +57,7 @@ func (arp *AppRepoPostgres) Ping() error {
 
 func (arp *AppRepoPostgres) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error) {
 	query := `INSERT INTO url (url, url_id) VALUES `
-	args := []interface{}{}
+	args := make([]interface{}, 0, len(urls)*2)
 	lenURLs := len(urls)
 	for i, url := range urls {
 		query += fmt.Sprintf("($%d, $%d)", i*2+1, i*2+2)
