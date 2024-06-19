@@ -9,7 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
+	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,15 +29,15 @@ var (
 
 type testAppUsecase struct{}
 
-func (tau *testAppUsecase) GetOrCreateURL(rawURL string) (*app.URL, error) {
+func (tau *testAppUsecase) GetOrCreateURL(rawURL string) (*app.URL, bool, error) {
 	switch rawURL {
 	case TestValidURL:
 		return &app.URL{
 			ID:  TestID,
 			URL: TestValidURL,
-		}, nil
+		}, false, nil
 	}
-	return nil, ErrTestInvalidURL
+	return nil, false, ErrTestInvalidURL
 }
 
 func (tau *testAppUsecase) GetURL(id string) (*app.URL, error) {
@@ -53,6 +53,15 @@ func (tau *testAppUsecase) GetURL(id string) (*app.URL, error) {
 
 func (tau *testAppUsecase) GenerateShortURL(id string) string {
 	return id
+}
+
+func (tau *testAppUsecase) Ping() error {
+	return nil
+}
+
+// TODO
+func (tau *testAppUsecase) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL) ([]app.ResponseBatchURL, error) {
+	return []app.ResponseBatchURL{}, nil
 }
 
 func TestAppHandler_GetOrCreateURL(t *testing.T) {

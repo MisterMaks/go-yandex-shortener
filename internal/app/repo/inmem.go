@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sync"
 
-	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
+	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 )
 
 var ErrURLNotFound = errors.New("url not found")
@@ -52,10 +52,7 @@ func (ari *AppRepoInmem) GetOrCreateURL(id, rawURL string) (*app.URL, error) {
 			return url, nil
 		}
 	}
-	url, err := app.NewURL(id, rawURL)
-	if err != nil {
-		return nil, err
-	}
+	url := &app.URL{ID: id, URL: rawURL}
 	ari.urls = append(ari.urls, url)
 
 	if ari.producer != nil {
@@ -89,4 +86,27 @@ func (ari *AppRepoInmem) CheckIDExistence(id string) (bool, error) {
 
 func (ari *AppRepoInmem) Close() error {
 	return ari.producer.close()
+}
+
+func (ari *AppRepoInmem) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error) {
+	ari.mu.Lock()
+	defer ari.mu.Unlock()
+
+	for _, url := range urls {
+		for _, ariURL := range ari.urls {
+			if url.URL == ariURL.URL {
+				url.ID = ariURL.ID
+				continue
+			}
+		}
+
+		url := &app.URL{ID: url.ID, URL: url.URL}
+		ari.urls = append(ari.urls, url)
+
+		if ari.producer != nil {
+			ari.producer.writeURL(url)
+		}
+	}
+
+	return urls, nil
 }

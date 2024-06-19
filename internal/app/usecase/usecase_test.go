@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
+	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -66,9 +66,9 @@ func Test_generateID(t *testing.T) {
 
 type testAppRepo struct{}
 
-func (tar *testAppRepo) GetOrCreateURL(id, rawURL string) (*app.URL, error) {
-	url, err := app.NewURL(TestURLID, rawURL)
-	return url, err
+func (tar *testAppRepo) GetOrCreateURL(_, rawURL string) (*app.URL, error) {
+	url := &app.URL{ID: TestURLID, URL: rawURL}
+	return url, nil
 }
 
 func (tar *testAppRepo) GetURL(id string) (*app.URL, error) {
@@ -84,6 +84,11 @@ func (tar *testAppRepo) GetURL(id string) (*app.URL, error) {
 
 func (tar *testAppRepo) CheckIDExistence(id string) (bool, error) {
 	return id == TestURLID, nil
+}
+
+// TODO
+func (tar *testAppRepo) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error) {
+	return []*app.URL{}, nil
 }
 
 func TestNewAppUsecase(t *testing.T) {
@@ -192,7 +197,7 @@ func TestNewAppUsecase(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tar := &testAppRepo{}
-			appUsecase, err := NewAppUsecase(tar, tt.args.resultAddrPrefix, tt.args.countRegenerationsForLengthID, tt.args.lengthID, tt.args.maxLengthID)
+			appUsecase, err := NewAppUsecase(tar, tt.args.resultAddrPrefix, tt.args.countRegenerationsForLengthID, tt.args.lengthID, tt.args.maxLengthID, nil)
 			if tt.want.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -280,7 +285,7 @@ func TestAppUsecase_GetOrCreateURL(t *testing.T) {
 				LengthID:                      tt.fields.lengthID,
 				MaxLengthID:                   tt.fields.maxLengthID,
 			}
-			url, err := au.GetOrCreateURL(tt.args.rawURL)
+			url, _, err := au.GetOrCreateURL(tt.args.rawURL)
 			assert.ErrorIs(t, err, tt.want.err)
 			assert.Equal(t, tt.want.url, url)
 		})

@@ -1,19 +1,22 @@
 package main
 
 import (
+	"context"
+	"database/sql"
+	"github.com/pressly/goose/v3"
 	"log"
 	"net/http"
 	"net/url"
 	"strings"
-
-	"github.com/go-chi/chi/v5"
-	"go.uber.org/zap"
 
 	appDeliveryInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/delivery"
 	appRepoInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/repo"
 	appUsecaseInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/usecase"
 	"github.com/MisterMaks/go-yandex-shortener/internal/gzip"
 	"github.com/MisterMaks/go-yandex-shortener/internal/logger"
+	"github.com/go-chi/chi/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"go.uber.org/zap"
 )
 
 const (
@@ -29,10 +32,28 @@ const (
 	AddrKey   string = "addr"
 )
 
+func migrate(dsn string) error {
+	db, err := goose.OpenDBWithDriver("postgres", dsn)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			logger.Log.Fatal("Failed to close DB",
+				zap.Error(err),
+			)
+		}
+	}()
+	ctx := context.Background()
+	return goose.RunContext(ctx, "up", db, "./migrations/")
+}
+
 type AppHandlerInterface interface {
 	GetOrCreateURL(w http.ResponseWriter, r *http.Request)
 	APIGetOrCreateURL(w http.ResponseWriter, r *http.Request)
 	RedirectToURL(w http.ResponseWriter, r *http.Request)
+	Ping(w http.ResponseWriter, r *http.Request)
+	APIGetOrCreateURLs(w http.ResponseWriter, r *http.Request)
 }
 
 func shortenerRouter(appHandler AppHandlerInterface, redirectPathPrefix string) chi.Router {
@@ -40,12 +61,28 @@ func shortenerRouter(appHandler AppHandlerInterface, redirectPathPrefix string) 
 	r.Use(logger.RequestLogger)
 	redirectPathPrefix = strings.TrimPrefix(redirectPathPrefix, "/")
 	r.Get(`/`+redirectPathPrefix+`{id}`, appHandler.RedirectToURL)
+	r.Get(`/ping`, appHandler.Ping)
 	r.Route(`/`, func(r chi.Router) {
 		r.Use(gzip.GzipMiddleware)
 		r.Post(`/`, appHandler.GetOrCreateURL)
 		r.Post(`/api/shorten`, appHandler.APIGetOrCreateURL)
+		r.Post(`/api/shorten/batch`, appHandler.APIGetOrCreateURLs)
 	})
 	return r
+}
+
+func connectPostgres(dsn string) (*sql.DB, error) {
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		return nil, err
+	}
+	err = db.Ping()
+	if err != nil {
+		logger.Log.Error("Failed to ping DB Postgres",
+			zap.Error(err),
+		)
+	}
+	return db, nil
 }
 
 func main() {
@@ -64,19 +101,49 @@ func main() {
 		zap.Any(ConfigKey, config),
 	)
 
-	appRepo, err := appRepoInternal.NewAppRepoInmem(config.FileStoragePath)
+	db, err := connectPostgres(config.DatabaseDSN)
 	if err != nil {
-		logger.Log.Fatal("Failed to create appRepo",
+		logger.Log.Fatal("Failed to connect to Postgres",
 			zap.Error(err),
 		)
 	}
-	defer appRepo.Close()
+	defer db.Close()
+
+	var appRepo appUsecaseInternal.AppRepoInterface
+	switch config.DatabaseDSN {
+	case "":
+		appRepoInmem, err := appRepoInternal.NewAppRepoInmem(config.FileStoragePath)
+		if err != nil {
+			logger.Log.Fatal("Failed to create appRepoInmem",
+				zap.Error(err),
+			)
+		}
+		defer appRepoInmem.Close()
+		appRepo = appRepoInmem
+	default:
+		logger.Log.Info("Applying migrations")
+		err = migrate(config.DatabaseDSN)
+		if err != nil {
+			logger.Log.Fatal("Failed to apply migrations",
+				zap.Error(err),
+			)
+		}
+		appRepoPostgres, err := appRepoInternal.NewAppRepoPostgres(db)
+		if err != nil {
+			logger.Log.Fatal("Failed to create appRepoPostgres",
+				zap.Error(err),
+			)
+		}
+		appRepo = appRepoPostgres
+	}
+
 	appUsecase, err := appUsecaseInternal.NewAppUsecase(
 		appRepo,
 		config.BaseURL,
 		CountRegenerationsForLengthID,
 		LengthID,
 		MaxLengthID,
+		db,
 	)
 	if err != nil {
 		logger.Log.Fatal("Failed to create appUsecase",

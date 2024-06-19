@@ -1,16 +1,18 @@
 package usecase
 
 import (
+	"database/sql"
 	"errors"
 	"math/rand"
 	"net/url"
+	"regexp"
 
-	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
+	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 )
 
 const (
 	Symbols      string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	CountSymbols int    = len(Symbols)
+	CountSymbols        = len(Symbols)
 )
 
 var (
@@ -31,10 +33,27 @@ func generateID(length uint) (string, error) {
 	return string(b), nil
 }
 
+func parseURL(rawURL string) (string, error) {
+	matched, err := regexp.MatchString("^https?://", rawURL)
+	if err != nil {
+		return "", err
+	}
+	parsedRequestURI := rawURL
+	if !matched {
+		parsedRequestURI = "http://" + rawURL
+	}
+	_, err = url.ParseRequestURI(parsedRequestURI)
+	if err != nil {
+		return "", err
+	}
+	return parsedRequestURI, nil
+}
+
 type AppRepoInterface interface {
 	GetOrCreateURL(id, rawURL string) (*app.URL, error)
 	GetURL(id string) (*app.URL, error)
 	CheckIDExistence(id string) (bool, error)
+	GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error)
 }
 
 type AppUsecase struct {
@@ -44,9 +63,11 @@ type AppUsecase struct {
 	CountRegenerationsForLengthID uint
 	LengthID                      uint
 	MaxLengthID                   uint
+
+	db *sql.DB
 }
 
-func NewAppUsecase(appRepo AppRepoInterface, baseURL string, countRegenerationsForLengthID, lengthID, maxLengthID uint) (*AppUsecase, error) {
+func NewAppUsecase(appRepo AppRepoInterface, baseURL string, countRegenerationsForLengthID, lengthID, maxLengthID uint, db *sql.DB) (*AppUsecase, error) {
 	if lengthID == 0 {
 		return nil, ErrZeroLengthID
 	}
@@ -69,12 +90,13 @@ func NewAppUsecase(appRepo AppRepoInterface, baseURL string, countRegenerationsF
 		CountRegenerationsForLengthID: countRegenerationsForLengthID,
 		LengthID:                      lengthID,
 		MaxLengthID:                   maxLengthID,
+		db:                            db,
 	}, nil
 }
 
-func (au *AppUsecase) GetOrCreateURL(rawURL string) (*app.URL, error) {
+func (au *AppUsecase) generateID() (string, error) {
 	if au.LengthID > au.MaxLengthID {
-		return nil, ErrMaxLengthIDLessLengthID
+		return "", ErrMaxLengthIDLessLengthID
 	}
 
 	var err error
@@ -83,22 +105,37 @@ func (au *AppUsecase) GetOrCreateURL(rawURL string) (*app.URL, error) {
 	for i := 0; i < int(au.CountRegenerationsForLengthID); i++ {
 		id, err = generateID(au.LengthID)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 		checked, err = au.AppRepo.CheckIDExistence(id)
-		if err != nil || checked {
+		if err != nil {
+			return "", err
+		}
+		if checked {
 			continue
 		}
 		break
 	}
 
-	if err != nil || checked {
+	if checked {
 		au.LengthID++
-		au.GetOrCreateURL(rawURL)
+		return au.generateID()
 	}
 
-	url, err := au.AppRepo.GetOrCreateURL(id, rawURL)
-	return url, err
+	return id, nil
+}
+
+func (au *AppUsecase) GetOrCreateURL(rawURL string) (*app.URL, bool, error) {
+	_, err := parseURL(rawURL)
+	if err != nil {
+		return nil, false, err
+	}
+	id, err := au.generateID()
+	if err != nil {
+		return nil, false, err
+	}
+	appURL, err := au.AppRepo.GetOrCreateURL(id, rawURL)
+	return appURL, appURL.ID != id, err
 }
 
 func (au *AppUsecase) GetURL(id string) (*app.URL, error) {
@@ -107,4 +144,38 @@ func (au *AppUsecase) GetURL(id string) (*app.URL, error) {
 
 func (au *AppUsecase) GenerateShortURL(id string) string {
 	return au.BaseURL + id
+}
+
+func (au *AppUsecase) Ping() error {
+	return au.db.Ping()
+}
+
+func (au *AppUsecase) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL) ([]app.ResponseBatchURL, error) {
+	urls := []*app.URL{}
+	for _, rbu := range requestBatchURLs {
+		id, err := au.generateID()
+		if err != nil {
+			return nil, err
+		}
+		urls = append(urls, &app.URL{ID: id, URL: rbu.OriginalURL})
+	}
+
+	urls, err := au.AppRepo.GetOrCreateURLs(urls)
+	if err != nil {
+		return nil, err
+	}
+
+	responseBatchURLs := []app.ResponseBatchURL{}
+	for _, appURL := range urls {
+		for _, rbu := range requestBatchURLs {
+			if appURL.URL == rbu.OriginalURL {
+				responseBatchURLs = append(responseBatchURLs, app.ResponseBatchURL{
+					CorrelationID: rbu.CorrelationID,
+					ShortURL:      au.GenerateShortURL(appURL.ID),
+				})
+			}
+		}
+	}
+
+	return responseBatchURLs, nil
 }

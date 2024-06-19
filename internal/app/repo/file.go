@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"os"
 
-	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
+	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 )
 
 type producer struct {
