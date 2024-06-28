@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	appDeliveryInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/delivery"
 	appRepoInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/repo"
@@ -22,11 +23,14 @@ import (
 const (
 	Addr                          string = "localhost:8080"
 	ResultAddrPrefix              string = "http://localhost:8080/"
-	FileStoragePath               string = "/tmp/short-url-db.json"
+	URLsFileStoragePath           string = "/tmp/short-url-db.json"
+	UsersFileStoragePath          string = "/tmp/user-db.json"
 	CountRegenerationsForLengthID uint   = 5
 	LengthID                      uint   = 5
 	MaxLengthID                   uint   = 20
 	LogLevel                      string = "INFO"
+	SecretKey                     string = "supersecretkey"
+	TokenExp                             = time.Hour * 3
 
 	ConfigKey string = "config"
 	AddrKey   string = "addr"

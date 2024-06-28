@@ -56,7 +56,7 @@ func (c *Config) parseFlags() error {
 		c.LogLevel = LogLevel
 	}
 	if !foundFlagFileStoragePath && !foundEnvFileStoragePath {
-		c.FileStoragePath = FileStoragePath
+		c.FileStoragePath = URLsFileStoragePath
 	}
 
 	_, err = url.ParseRequestURI(c.BaseURL)
