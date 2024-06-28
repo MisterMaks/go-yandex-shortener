@@ -94,3 +94,33 @@ func (arp *AppRepoPostgres) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error)
 
 	return urls, err
 }
+
+func (arp *AppRepoPostgres) GetUserURLs(userID uint) ([]*app.URL, error) {
+	query := `SELECT url, url_id FROM url WHERE user_id = $1;`
+
+	rows, err := arp.db.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	urls := []*app.URL{}
+	for rows.Next() {
+		var (
+			id  string
+			url string
+		)
+		err = rows.Scan(&url, &id)
+		if err != nil {
+			return nil, err
+		}
+		urls = append(urls, &app.URL{ID: id, URL: url})
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return urls, err
+}

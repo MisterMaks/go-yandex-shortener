@@ -16,14 +16,13 @@ type ContextRequestIDKeyType string
 type LoggerKeyType string
 
 const (
-	MethodKey            string                  = "method"
-	URIKey               string                  = "uri"
-	RequestIDKey         string                  = "request_id"
-	ContextRequestIDKey  ContextRequestIDKeyType = "request_id"
-	ExecutionDurationKey string                  = "execution_duration"
-	StatusCodeKey        string                  = "status_code"
-	ResponseBodySizeBKey string                  = "response_body_size_B"
-	LoggerKey            LoggerKeyType           = "logger_key"
+	MethodKey            string        = "method"
+	URIKey               string        = "uri"
+	RequestIDKey         string        = "request_id"
+	ExecutionDurationKey string        = "execution_duration"
+	StatusCodeKey        string        = "status_code"
+	ResponseBodySizeBKey string        = "response_body_size_B"
+	LoggerKey            LoggerKeyType = "logger_key"
 )
 
 func Initialize(level string) error {
@@ -93,7 +92,7 @@ func RequestLogger(h http.Handler) http.Handler {
 	})
 }
 
-func GetLoggerWithRequestID(ctx context.Context) *zap.Logger {
+func GetContextLogger(ctx context.Context) *zap.Logger {
 	if ctx == nil {
 		return Log
 	}

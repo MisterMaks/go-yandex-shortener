@@ -110,3 +110,17 @@ func (ari *AppRepoInmem) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error) {
 
 	return urls, nil
 }
+
+func (ari *AppRepoInmem) GetUserURLs(userID uint) ([]*app.URL, error) {
+	ari.mu.RLock()
+	defer ari.mu.RUnlock()
+
+	userURLs := []*app.URL{}
+	for _, url := range ari.urls {
+		if url.UserID == userID {
+			userURLs = append(userURLs, url)
+		}
+	}
+
+	return userURLs, nil
+}

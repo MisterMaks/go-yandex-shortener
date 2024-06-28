@@ -10,6 +10,7 @@ import (
 
 	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 	"github.com/MisterMaks/go-yandex-shortener/internal/logger"
+	"github.com/MisterMaks/go-yandex-shortener/internal/user/usecase"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
@@ -29,6 +30,7 @@ const (
 	ShortURLKey       string = "short_url"
 	RequestPathIDKey  string = "request_path_id"
 	ResponseKey       string = "response"
+	UserIDKey         string = "user_id"
 )
 
 type AppUsecaseInterface interface {
@@ -37,6 +39,7 @@ type AppUsecaseInterface interface {
 	GenerateShortURL(id string) string
 	Ping() error
 	GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL) ([]app.ResponseBatchURL, error)
+	GetUserURLs(userID uint) ([]app.ResponseUserURL, error)
 }
 
 type AppHandler struct {
@@ -48,7 +51,7 @@ func NewAppHandler(appUsecase AppUsecaseInterface) *AppHandler {
 }
 
 func (ah *AppHandler) GetOrCreateURL(w http.ResponseWriter, r *http.Request) {
-	handlerLogger := logger.GetLoggerWithRequestID(r.Context())
+	handlerLogger := logger.GetContextLogger(r.Context())
 
 	handlerLogger.Info("Creating or getting URL")
 
@@ -109,7 +112,7 @@ func (ah *AppHandler) GetOrCreateURL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ah *AppHandler) APIGetOrCreateURL(w http.ResponseWriter, r *http.Request) {
-	handlerLogger := logger.GetLoggerWithRequestID(r.Context())
+	handlerLogger := logger.GetContextLogger(r.Context())
 
 	handlerLogger.Info("Creating or getting URL using API")
 
@@ -182,7 +185,7 @@ func (ah *AppHandler) APIGetOrCreateURL(w http.ResponseWriter, r *http.Request) 
 }
 
 func (ah *AppHandler) RedirectToURL(w http.ResponseWriter, r *http.Request) {
-	handlerLogger := logger.GetLoggerWithRequestID(r.Context())
+	handlerLogger := logger.GetContextLogger(r.Context())
 
 	handlerLogger.Info("Redirecting to URL")
 
@@ -222,7 +225,7 @@ func (ah *AppHandler) RedirectToURL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ah *AppHandler) Ping(w http.ResponseWriter, r *http.Request) {
-	handlerLogger := logger.GetLoggerWithRequestID(r.Context())
+	handlerLogger := logger.GetContextLogger(r.Context())
 
 	handlerLogger.Info("Ping DB")
 
@@ -246,7 +249,7 @@ func (ah *AppHandler) Ping(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ah *AppHandler) APIGetOrCreateURLs(w http.ResponseWriter, r *http.Request) {
-	handlerLogger := logger.GetLoggerWithRequestID(r.Context())
+	handlerLogger := logger.GetContextLogger(r.Context())
 
 	handlerLogger.Info("Creating or getting URLs batch using API")
 
@@ -292,6 +295,41 @@ func (ah *AppHandler) APIGetOrCreateURLs(w http.ResponseWriter, r *http.Request)
 
 	w.Header().Set(ContentTypeKey, ApplicationJSONKey)
 	w.WriteHeader(http.StatusCreated)
+
+	enc := json.NewEncoder(w)
+	err = enc.Encode(resp)
+	if err != nil {
+		handlerLogger.Warn("Bad request",
+			zap.Any(ResponseKey, resp),
+			zap.Error(err),
+		)
+		return
+	}
+}
+
+func (ah *AppHandler) APIGetUserURLs(w http.ResponseWriter, r *http.Request) {
+	handlerLogger := logger.GetContextLogger(r.Context())
+
+	handlerLogger.Info("Getting user URLs using API")
+
+	if r.Method != http.MethodGet {
+		handlerLogger.Warn("Request method is not GET", zap.String(MethodKey, r.Method))
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID := r.Context().Value(usecase.UserIDKey).(uint)
+	resp, err := ah.AppUsecase.GetUserURLs(userID)
+	if err != nil {
+		handlerLogger.Warn("Bad request", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if len(resp) == 0 {
+		handlerLogger.Warn("No content")
+		w.WriteHeader(http.StatusNoContent)
+	}
 
 	enc := json.NewEncoder(w)
 	err = enc.Encode(resp)

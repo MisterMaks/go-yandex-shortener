@@ -54,6 +54,7 @@ type AppRepoInterface interface {
 	GetURL(id string) (*app.URL, error)
 	CheckIDExistence(id string) (bool, error)
 	GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error)
+	GetUserURLs(userID uint) ([]*app.URL, error)
 }
 
 type AppUsecase struct {
@@ -178,4 +179,21 @@ func (au *AppUsecase) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL) ([
 	}
 
 	return responseBatchURLs, nil
+}
+
+func (au *AppUsecase) GetUserURLs(userID uint) ([]app.ResponseUserURL, error) {
+	urls, err := au.AppRepo.GetUserURLs(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	responseUserURLs := []app.ResponseUserURL{}
+	for _, appURL := range urls {
+		responseUserURLs = append(responseUserURLs, app.ResponseUserURL{
+			ShortURL:    au.GenerateShortURL(appURL.ID),
+			OriginalURL: appURL.URL,
+		})
+	}
+
+	return responseUserURLs, nil
 }
