@@ -51,6 +51,10 @@ func NewUserRepoInmem(filename string) (*UserRepoInmem, error) {
 	}, nil
 }
 
+func (uri *UserRepoInmem) Close() error {
+	return uri.producer.close()
+}
+
 func (uri *UserRepoInmem) CreateUser() (*user.User, error) {
 	uri.mu.Lock()
 	defer uri.mu.Unlock()

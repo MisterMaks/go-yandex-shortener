@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"github.com/MisterMaks/go-yandex-shortener/internal/logger"
 	"github.com/MisterMaks/go-yandex-shortener/internal/user"
 	"github.com/golang-jwt/jwt/v4"
@@ -12,7 +13,10 @@ import (
 
 type UserIDKeyType string
 
-const UserIDKey UserIDKeyType = "user_id"
+const (
+	UserIDKey      UserIDKeyType = "user_id"
+	AccessTokenKey string        = "accessToken"
+)
 
 type Claims struct {
 	jwt.RegisteredClaims
@@ -40,7 +44,7 @@ func NewUserUsecase(userRepo UserRepoInterface, sk string, te time.Duration) (*U
 }
 
 // BuildJWTString создаёт токен и возвращает его в виде строки.
-func (uu *UserUsecase) BuildJWTString(userID uint) (string, error) {
+func (uu *UserUsecase) buildJWTString(userID uint) (string, error) {
 	// создаём новый токен с алгоритмом подписи HS256 и утверждениями — Claims
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -82,7 +86,9 @@ func (uu *UserUsecase) CreateUser() (*user.User, error) {
 
 func (uu *UserUsecase) AuthentificateOrRegister(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cookie, err := r.Cookie("accessToken")
+		ctxLogger := logger.GetContextLogger(r.Context())
+
+		cookie, err := r.Cookie(AccessTokenKey)
 		if err != nil {
 			u, err := uu.CreateUser()
 			if err != nil {
@@ -90,7 +96,19 @@ func (uu *UserUsecase) AuthentificateOrRegister(h http.Handler) http.Handler {
 				return
 			}
 
+			accessToken, err := uu.buildJWTString(u.ID)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			http.SetCookie(w, &http.Cookie{Name: AccessTokenKey, Value: accessToken})
+
 			ctx := context.WithValue(r.Context(), UserIDKey, u.ID)
+
+			ctxLogger = ctxLogger.With(zap.Uint(string(UserIDKey), u.ID))
+			ctx = context.WithValue(ctx, logger.LoggerKey, ctxLogger)
+
 			h.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
@@ -104,12 +122,28 @@ func (uu *UserUsecase) AuthentificateOrRegister(h http.Handler) http.Handler {
 				return
 			}
 
+			accessToken, err := uu.buildJWTString(u.ID)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			http.SetCookie(w, &http.Cookie{Name: AccessTokenKey, Value: accessToken})
+
 			ctx := context.WithValue(r.Context(), UserIDKey, u.ID)
+
+			ctxLogger = ctxLogger.With(zap.Uint(string(UserIDKey), u.ID))
+			ctx = context.WithValue(ctx, logger.LoggerKey, ctxLogger)
+
 			h.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 
 		ctx := context.WithValue(r.Context(), UserIDKey, userID)
+
+		ctxLogger = ctxLogger.With(zap.Uint(string(UserIDKey), userID))
+		ctx = context.WithValue(ctx, logger.LoggerKey, ctxLogger)
+
 		h.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -132,11 +166,20 @@ func (uu *UserUsecase) Authentificate(h http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), UserIDKey, userID)
 
 		ctxLogger := logger.GetContextLogger(r.Context())
-		ctxLogger = ctxLogger.With(
-			zap.Uint(string(UserIDKey), userID),
-		)
+		ctxLogger = ctxLogger.With(zap.Uint(string(UserIDKey), userID))
 		ctx = context.WithValue(ctx, logger.LoggerKey, ctxLogger)
 
 		h.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func GetContextUserID(ctx context.Context) (uint, error) {
+	if ctx == nil {
+		return 0, fmt.Errorf("no context")
+	}
+	userID, ok := ctx.Value(UserIDKey).(uint)
+	if !ok {
+		return 0, fmt.Errorf("no %v", UserIDKey)
+	}
+	return userID, nil
 }

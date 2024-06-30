@@ -50,7 +50,7 @@ func parseURL(rawURL string) (string, error) {
 }
 
 type AppRepoInterface interface {
-	GetOrCreateURL(id, rawURL string) (*app.URL, error)
+	GetOrCreateURL(id, rawURL string, userID uint) (*app.URL, error)
 	GetURL(id string) (*app.URL, error)
 	CheckIDExistence(id string) (bool, error)
 	GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error)
@@ -126,7 +126,7 @@ func (au *AppUsecase) generateID() (string, error) {
 	return id, nil
 }
 
-func (au *AppUsecase) GetOrCreateURL(rawURL string) (*app.URL, bool, error) {
+func (au *AppUsecase) GetOrCreateURL(rawURL string, userID uint) (*app.URL, bool, error) {
 	_, err := parseURL(rawURL)
 	if err != nil {
 		return nil, false, err
@@ -135,7 +135,10 @@ func (au *AppUsecase) GetOrCreateURL(rawURL string) (*app.URL, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	appURL, err := au.AppRepo.GetOrCreateURL(id, rawURL)
+	appURL, err := au.AppRepo.GetOrCreateURL(id, rawURL, userID)
+	if err != nil {
+		return nil, false, err
+	}
 	return appURL, appURL.ID != id, err
 }
 
@@ -151,14 +154,14 @@ func (au *AppUsecase) Ping() error {
 	return au.db.Ping()
 }
 
-func (au *AppUsecase) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL) ([]app.ResponseBatchURL, error) {
+func (au *AppUsecase) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL, userID uint) ([]app.ResponseBatchURL, error) {
 	urls := []*app.URL{}
 	for _, rbu := range requestBatchURLs {
 		id, err := au.generateID()
 		if err != nil {
 			return nil, err
 		}
-		urls = append(urls, &app.URL{ID: id, URL: rbu.OriginalURL})
+		urls = append(urls, &app.URL{ID: id, URL: rbu.OriginalURL, UserID: userID})
 	}
 
 	urls, err := au.AppRepo.GetOrCreateURLs(urls)

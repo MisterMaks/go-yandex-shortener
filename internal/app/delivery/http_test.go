@@ -20,6 +20,7 @@ const (
 	TestInvalidURL string = "invalid_url"
 	TestID         string = "1"
 	TestHost       string = "http://example.com"
+	TestUserID     uint   = 1
 )
 
 var (
@@ -29,12 +30,13 @@ var (
 
 type testAppUsecase struct{}
 
-func (tau *testAppUsecase) GetOrCreateURL(rawURL string) (*app.URL, bool, error) {
+func (tau *testAppUsecase) GetOrCreateURL(rawURL string, userID uint) (*app.URL, bool, error) {
 	switch rawURL {
 	case TestValidURL:
 		return &app.URL{
-			ID:  TestID,
-			URL: TestValidURL,
+			ID:     TestID,
+			URL:    TestValidURL,
+			UserID: TestUserID,
 		}, false, nil
 	}
 	return nil, false, ErrTestInvalidURL
@@ -60,8 +62,13 @@ func (tau *testAppUsecase) Ping() error {
 }
 
 // TODO
-func (tau *testAppUsecase) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL) ([]app.ResponseBatchURL, error) {
+func (tau *testAppUsecase) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL, userID uint) ([]app.ResponseBatchURL, error) {
 	return []app.ResponseBatchURL{}, nil
+}
+
+// TODO
+func (tau *testAppUsecase) GetUserURLs(userID uint) ([]app.ResponseUserURL, error) {
+	return []app.ResponseUserURL{}, nil
 }
 
 func TestAppHandler_GetOrCreateURL(t *testing.T) {

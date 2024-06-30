@@ -34,11 +34,11 @@ const (
 )
 
 type AppUsecaseInterface interface {
-	GetOrCreateURL(rawURL string) (*app.URL, bool, error)
+	GetOrCreateURL(rawURL string, userID uint) (*app.URL, bool, error)
 	GetURL(id string) (*app.URL, error)
 	GenerateShortURL(id string) string
 	Ping() error
-	GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL) ([]app.ResponseBatchURL, error)
+	GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL, userID uint) ([]app.ResponseBatchURL, error)
 	GetUserURLs(userID uint) ([]app.ResponseUserURL, error)
 }
 
@@ -83,9 +83,19 @@ func (ah *AppHandler) GetOrCreateURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID, err := usecase.GetContextUserID(r.Context())
+	if err != nil {
+		handlerLogger.Warn("No user ID",
+			zap.Any(RequestBodyKey, r.Body),
+			zap.Error(err),
+		)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	bodyStr := string(body)
 
-	url, exists, err := ah.AppUsecase.GetOrCreateURL(bodyStr)
+	url, exists, err := ah.AppUsecase.GetOrCreateURL(bodyStr, userID)
 	if err != nil {
 		handlerLogger.Warn("Bad request",
 			zap.String(RequestBodyStrKey, bodyStr),
@@ -150,7 +160,17 @@ func (ah *AppHandler) APIGetOrCreateURL(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	url, exists, err := ah.AppUsecase.GetOrCreateURL(req.URL)
+	userID, err := usecase.GetContextUserID(r.Context())
+	if err != nil {
+		handlerLogger.Warn("No user ID",
+			zap.Any(RequestBodyKey, r.Body),
+			zap.Error(err),
+		)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	url, exists, err := ah.AppUsecase.GetOrCreateURL(req.URL, userID)
 	if err != nil {
 		handlerLogger.Warn("Bad request",
 			zap.String(URLKey, req.URL),
@@ -283,7 +303,17 @@ func (ah *AppHandler) APIGetOrCreateURLs(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	resp, err := ah.AppUsecase.GetOrCreateURLs(req)
+	userID, err := usecase.GetContextUserID(r.Context())
+	if err != nil {
+		handlerLogger.Warn("No user ID",
+			zap.Any(RequestBodyKey, r.Body),
+			zap.Error(err),
+		)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	resp, err := ah.AppUsecase.GetOrCreateURLs(req, userID)
 	if err != nil {
 		handlerLogger.Warn("Bad request",
 			zap.Any(URLsKey, req),

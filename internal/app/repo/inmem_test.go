@@ -27,6 +27,7 @@ func TestAppRepoInmem_GetOrCreateURL(t *testing.T) {
 	type args struct {
 		id     string
 		rawURL string
+		userID uint
 	}
 	type want struct {
 		url     *app.URL
@@ -47,11 +48,13 @@ func TestAppRepoInmem_GetOrCreateURL(t *testing.T) {
 			args: args{
 				id:     "1",
 				rawURL: "yandex.ru",
+				userID: 1,
 			},
 			want: want{
 				url: &app.URL{
-					ID:  "1",
-					URL: "yandex.ru",
+					ID:     "1",
+					URL:    "yandex.ru",
+					UserID: 1,
 				},
 				wantErr: false,
 			},
@@ -59,16 +62,18 @@ func TestAppRepoInmem_GetOrCreateURL(t *testing.T) {
 		{
 			name: "get existed URL",
 			fields: fields{
-				urls: []*app.URL{{ID: "1", URL: "yandex.ru"}},
+				urls: []*app.URL{{ID: "1", URL: "yandex.ru", UserID: 1}},
 			},
 			args: args{
 				id:     "2",
 				rawURL: "yandex.ru",
+				userID: 2,
 			},
 			want: want{
 				url: &app.URL{
-					ID:  "1",
-					URL: "yandex.ru",
+					ID:     "1",
+					URL:    "yandex.ru",
+					UserID: 1,
 				},
 				wantErr: false,
 			},
@@ -86,7 +91,7 @@ func TestAppRepoInmem_GetOrCreateURL(t *testing.T) {
 				mu:       sync.RWMutex{},
 				producer: producer,
 			}
-			url, err := ari.GetOrCreateURL(tt.args.id, tt.args.rawURL)
+			url, err := ari.GetOrCreateURL(tt.args.id, tt.args.rawURL, tt.args.userID)
 			if tt.want.wantErr {
 				assert.Error(t, err)
 			} else {

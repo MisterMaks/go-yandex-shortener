@@ -15,6 +15,8 @@ import (
 	appUsecaseInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/usecase"
 	"github.com/MisterMaks/go-yandex-shortener/internal/gzip"
 	"github.com/MisterMaks/go-yandex-shortener/internal/logger"
+	userRepoInternal "github.com/MisterMaks/go-yandex-shortener/internal/user/repo"
+	userUsecaseInternal "github.com/MisterMaks/go-yandex-shortener/internal/user/usecase"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
@@ -58,20 +60,33 @@ type AppHandlerInterface interface {
 	RedirectToURL(w http.ResponseWriter, r *http.Request)
 	Ping(w http.ResponseWriter, r *http.Request)
 	APIGetOrCreateURLs(w http.ResponseWriter, r *http.Request)
+	APIGetUserURLs(w http.ResponseWriter, r *http.Request)
 }
 
-func shortenerRouter(appHandler AppHandlerInterface, redirectPathPrefix string) chi.Router {
+type Middlewares struct {
+	RequestLogger            func(http.Handler) http.Handler
+	GzipMiddleware           func(http.Handler) http.Handler
+	Authentificate           func(http.Handler) http.Handler
+	AuthentificateOrRegister func(http.Handler) http.Handler
+}
+
+func shortenerRouter(
+	appHandler AppHandlerInterface,
+	redirectPathPrefix string,
+	middlewares *Middlewares,
+) chi.Router {
 	r := chi.NewRouter()
-	r.Use(logger.RequestLogger)
+	r.Use(middlewares.RequestLogger, middlewares.AuthentificateOrRegister)
 	redirectPathPrefix = strings.TrimPrefix(redirectPathPrefix, "/")
 	r.Get(`/`+redirectPathPrefix+`{id}`, appHandler.RedirectToURL)
 	r.Get(`/ping`, appHandler.Ping)
 	r.Route(`/`, func(r chi.Router) {
-		r.Use(gzip.GzipMiddleware)
+		r.Use(middlewares.GzipMiddleware)
 		r.Post(`/`, appHandler.GetOrCreateURL)
 		r.Post(`/api/shorten`, appHandler.APIGetOrCreateURL)
 		r.Post(`/api/shorten/batch`, appHandler.APIGetOrCreateURLs)
 	})
+	r.With(middlewares.Authentificate).Get(`/api/user/urls`, appHandler.APIGetUserURLs)
 	return r
 }
 
@@ -114,6 +129,7 @@ func main() {
 	defer db.Close()
 
 	var appRepo appUsecaseInternal.AppRepoInterface
+	var userRepo userUsecaseInternal.UserRepoInterface
 	switch config.DatabaseDSN {
 	case "":
 		appRepoInmem, err := appRepoInternal.NewAppRepoInmem(config.FileStoragePath)
@@ -124,6 +140,15 @@ func main() {
 		}
 		defer appRepoInmem.Close()
 		appRepo = appRepoInmem
+
+		userRepoInmem, err := userRepoInternal.NewUserRepoInmem(UsersFileStoragePath)
+		if err != nil {
+			logger.Log.Fatal("Failed to create userRepoInmem",
+				zap.Error(err),
+			)
+		}
+		defer userRepoInmem.Close()
+		userRepo = userRepoInmem
 	default:
 		logger.Log.Info("Applying migrations")
 		err = migrate(config.DatabaseDSN)
@@ -132,6 +157,7 @@ func main() {
 				zap.Error(err),
 			)
 		}
+
 		appRepoPostgres, err := appRepoInternal.NewAppRepoPostgres(db)
 		if err != nil {
 			logger.Log.Fatal("Failed to create appRepoPostgres",
@@ -139,6 +165,14 @@ func main() {
 			)
 		}
 		appRepo = appRepoPostgres
+
+		userRepoPostgres, err := userRepoInternal.NewUserRepoPostgres(db)
+		if err != nil {
+			logger.Log.Fatal("Failed to create userRepoPostgres",
+				zap.Error(err),
+			)
+		}
+		userRepo = userRepoPostgres
 	}
 
 	appUsecase, err := appUsecaseInternal.NewAppUsecase(
@@ -155,6 +189,17 @@ func main() {
 		)
 	}
 
+	userUsecase, err := userUsecaseInternal.NewUserUsecase(
+		userRepo,
+		SecretKey,
+		TokenExp,
+	)
+	if err != nil {
+		logger.Log.Fatal("Failed to create userUsecase",
+			zap.Error(err),
+		)
+	}
+
 	appHandler := appDeliveryInternal.NewAppHandler(appUsecase)
 
 	u, err := url.ParseRequestURI(config.BaseURL)
@@ -165,7 +210,14 @@ func main() {
 	}
 	redirectPathPrefix := u.Path
 
-	r := shortenerRouter(appHandler, redirectPathPrefix)
+	middlewares := &Middlewares{
+		RequestLogger:            logger.RequestLogger,
+		GzipMiddleware:           gzip.GzipMiddleware,
+		AuthentificateOrRegister: userUsecase.AuthentificateOrRegister,
+		Authentificate:           userUsecase.Authentificate,
+	}
+
+	r := shortenerRouter(appHandler, redirectPathPrefix, middlewares)
 
 	logger.Log.Info("Server running",
 		zap.String(AddrKey, config.ServerAddress),

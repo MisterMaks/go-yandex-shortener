@@ -3,7 +3,7 @@ package app
 type URL struct {
 	ID     string
 	URL    string
-	UserID *uint
+	UserID uint
 }
 
 type RequestBatchURL struct {
