@@ -84,7 +84,7 @@ func (uu *UserUsecase) CreateUser() (*user.User, error) {
 	return uu.UserRepo.CreateUser()
 }
 
-func (uu *UserUsecase) AuthentificateOrRegister(h http.Handler) http.Handler {
+func (uu *UserUsecase) AuthenticateOrRegister(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctxLogger := logger.GetContextLogger(r.Context())
 
@@ -148,7 +148,7 @@ func (uu *UserUsecase) AuthentificateOrRegister(h http.Handler) http.Handler {
 	})
 }
 
-func (uu *UserUsecase) Authentificate(h http.Handler) http.Handler {
+func (uu *UserUsecase) Authenticate(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("accessToken")
 		if err != nil {
