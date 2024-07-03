@@ -98,9 +98,7 @@ func TestRouter(t *testing.T) {
 				h.ServeHTTP(w, r.WithContext(ctx))
 			})
 		},
-		Authenticate: func(h http.Handler) http.Handler {
-			return h
-		},
+		Authenticate: func(h http.Handler) http.Handler { return h },
 	}
 	ts := httptest.NewServer(shortenerRouter(appHandler, "/", middlewares))
 	defer ts.Close()
