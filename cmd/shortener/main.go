@@ -77,17 +77,16 @@ func shortenerRouter(
 ) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middlewares.RequestLogger)
-	r.With(middlewares.Authenticate, middlewares.GzipMiddleware).Get(`/api/user/urls`, appHandler.APIGetUserURLs)
-	r.Use(middlewares.AuthenticateOrRegister)
 	redirectPathPrefix = strings.TrimPrefix(redirectPathPrefix, "/")
 	r.Get(`/`+redirectPathPrefix+`{id}`, appHandler.RedirectToURL)
 	r.Get(`/ping`, appHandler.Ping)
 	r.Route(`/`, func(r chi.Router) {
-		r.Use(middlewares.GzipMiddleware)
+		r.Use(middlewares.GzipMiddleware, middlewares.AuthenticateOrRegister)
 		r.Post(`/`, appHandler.GetOrCreateURL)
 		r.Post(`/api/shorten`, appHandler.APIGetOrCreateURL)
 		r.Post(`/api/shorten/batch`, appHandler.APIGetOrCreateURLs)
 	})
+	r.With(middlewares.Authenticate).Get(`/api/user/urls`, appHandler.APIGetUserURLs)
 	return r
 }
 
