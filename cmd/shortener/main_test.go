@@ -223,7 +223,7 @@ func TestRouter(t *testing.T) {
 		require.NoError(t, err)
 		respBodyStr := string(respBody)
 
-		assert.Equal(t, tt.want.statusCode, resp.StatusCode, tt.name)
+		assert.Equal(t, tt.want.statusCode, resp.StatusCode)
 		if resp.StatusCode == http.StatusCreated {
 			assert.Contains(t, resp.Header.Values(ContentTypeKey), tt.want.contentType)
 			assert.Equal(t, tt.want.response, respBodyStr)
