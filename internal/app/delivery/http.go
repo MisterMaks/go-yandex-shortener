@@ -361,6 +361,8 @@ func (ah *AppHandler) APIGetUserURLs(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}
 
+	w.Header().Set(ContentTypeKey, ApplicationJSONKey)
+
 	enc := json.NewEncoder(w)
 	err = enc.Encode(resp)
 	if err != nil {
