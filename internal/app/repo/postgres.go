@@ -29,9 +29,9 @@ RETURNING url_id, user_id;`
 }
 
 func (arp *AppRepoPostgres) GetURL(id string) (*app.URL, error) {
-	query := `SELECT url, url_id FROM url WHERE url_id = $1;`
+	query := `SELECT url, url_id, is_deleted FROM url WHERE url_id = $1;`
 	url := &app.URL{}
-	err := arp.db.QueryRow(query, id).Scan(&url.URL, &url.ID)
+	err := arp.db.QueryRow(query, id).Scan(&url.URL, &url.ID, &url.IsDeleted)
 	if err != nil {
 		return nil, err
 	}
@@ -126,4 +126,22 @@ func (arp *AppRepoPostgres) GetUserURLs(userID uint) ([]*app.URL, error) {
 	}
 
 	return urls, err
+}
+
+func (arp *AppRepoPostgres) DeleteUserURLs(urls []*app.URL) error {
+	query := `UPDATE url SET is_deleted = true WHERE `
+	args := make([]interface{}, 0, len(urls)*2)
+	lenURLs := len(urls)
+	for i, url := range urls {
+		query += fmt.Sprintf("(url_id = $%d AND user_id = $%d)", i*2+1, i*2+2)
+		args = append(args, url.ID, url.UserID)
+		if i < lenURLs-1 {
+			query += " OR "
+		}
+	}
+	query += ";"
+
+	_, err := arp.db.Exec(query, args...)
+
+	return err
 }

@@ -102,7 +102,7 @@ func (uu *UserUsecase) AuthenticateOrRegister(h http.Handler) http.Handler {
 				return
 			}
 
-			http.SetCookie(w, &http.Cookie{Name: AccessTokenKey, Value: accessToken})
+			http.SetCookie(w, &http.Cookie{Name: AccessTokenKey, Value: accessToken, Path: "/"})
 
 			ctx := context.WithValue(r.Context(), UserIDKey, u.ID)
 
@@ -128,7 +128,7 @@ func (uu *UserUsecase) AuthenticateOrRegister(h http.Handler) http.Handler {
 				return
 			}
 
-			http.SetCookie(w, &http.Cookie{Name: AccessTokenKey, Value: accessToken})
+			http.SetCookie(w, &http.Cookie{Name: AccessTokenKey, Value: accessToken, Path: "/"})
 
 			ctx := context.WithValue(r.Context(), UserIDKey, u.ID)
 

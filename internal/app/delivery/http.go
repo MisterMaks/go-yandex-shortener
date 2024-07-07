@@ -40,6 +40,7 @@ type AppUsecaseInterface interface {
 	Ping() error
 	GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL, userID uint) ([]app.ResponseBatchURL, error)
 	GetUserURLs(userID uint) ([]app.ResponseUserURL, error)
+	SendDeleteUserURLsInChan(userID uint, urlIDs []string) error
 }
 
 type AppHandler struct {
@@ -236,10 +237,14 @@ func (ah *AppHandler) RedirectToURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	handlerLogger.Info("Found short URL",
-		zap.String(URLIDKey, url.ID),
-		zap.String(URLKey, url.URL),
+	handlerLogger.Info("Found URL",
+		zap.Any(URLKey, url),
 	)
+
+	if url.IsDeleted {
+		w.WriteHeader(http.StatusGone)
+		return
+	}
 
 	http.Redirect(w, r, url.URL, http.StatusTemporaryRedirect)
 }
@@ -372,4 +377,41 @@ func (ah *AppHandler) APIGetUserURLs(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
+}
+
+func (ah *AppHandler) APIDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
+	handlerLogger := logger.GetContextLogger(r.Context())
+
+	handlerLogger.Info("Deleting user URLs using API")
+
+	if r.Method != http.MethodDelete {
+		handlerLogger.Warn("Request method is not DELETE", zap.String(MethodKey, r.Method))
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req []string
+	dec := json.NewDecoder(r.Body)
+	err := dec.Decode(&req)
+	if err != nil {
+		handlerLogger.Warn("Bad request",
+			zap.Any(RequestBodyKey, r.Body),
+			zap.Error(err),
+		)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	handlerLogger.Debug("Request data", zap.Any("url_ids", req))
+
+	userID := r.Context().Value(usecase.UserIDKey).(uint)
+	
+	err = ah.AppUsecase.SendDeleteUserURLsInChan(userID, req)
+	if err != nil {
+		handlerLogger.Warn("Bad request", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
 }

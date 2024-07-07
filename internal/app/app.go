@@ -1,9 +1,10 @@
 package app
 
 type URL struct {
-	ID     string
-	URL    string
-	UserID uint
+	ID        string
+	URL       string
+	UserID    uint
+	IsDeleted bool
 }
 
 type RequestBatchURL struct {

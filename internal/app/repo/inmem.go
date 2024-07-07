@@ -125,3 +125,18 @@ func (ari *AppRepoInmem) GetUserURLs(userID uint) ([]*app.URL, error) {
 
 	return userURLs, nil
 }
+
+func (ari *AppRepoInmem) DeleteUserURLs(urls []*app.URL) error {
+	ari.mu.Lock()
+	defer ari.mu.Unlock()
+
+	for _, url := range urls {
+		for _, ariURL := range ari.urls {
+			if url.ID == ariURL.ID && url.UserID == ariURL.UserID {
+				ariURL.IsDeleted = true
+			}
+		}
+	}
+
+	return nil
+}

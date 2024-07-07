@@ -33,6 +33,7 @@ const (
 	LogLevel                      string = "INFO"
 	SecretKey                     string = "supersecretkey"
 	TokenExp                             = time.Hour * 3
+	DeleteURLsWaitingTime                = 5 * time.Second
 
 	ConfigKey string = "config"
 	AddrKey   string = "addr"
@@ -61,6 +62,7 @@ type AppHandlerInterface interface {
 	Ping(w http.ResponseWriter, r *http.Request)
 	APIGetOrCreateURLs(w http.ResponseWriter, r *http.Request)
 	APIGetUserURLs(w http.ResponseWriter, r *http.Request)
+	APIDeleteUserURLs(w http.ResponseWriter, r *http.Request)
 }
 
 type Middlewares struct {
@@ -86,7 +88,11 @@ func shortenerRouter(
 		r.Post(`/api/shorten`, appHandler.APIGetOrCreateURL)
 		r.Post(`/api/shorten/batch`, appHandler.APIGetOrCreateURLs)
 	})
-	r.With(middlewares.Authenticate).Get(`/api/user/urls`, appHandler.APIGetUserURLs)
+	r.Route(`/api/user/urls`, func(r chi.Router) {
+		r.Use(middlewares.Authenticate)
+		r.Get(`/`, appHandler.APIGetUserURLs)
+		r.Delete(`/`, appHandler.APIDeleteUserURLs)
+	})
 	return r
 }
 
@@ -182,12 +188,14 @@ func main() {
 		LengthID,
 		MaxLengthID,
 		db,
+		DeleteURLsWaitingTime,
 	)
 	if err != nil {
 		logger.Log.Fatal("Failed to create appUsecase",
 			zap.Error(err),
 		)
 	}
+	defer appUsecase.Close()
 
 	userUsecase, err := userUsecaseInternal.NewUserUsecase(
 		userRepo,

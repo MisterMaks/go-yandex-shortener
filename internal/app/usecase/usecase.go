@@ -3,11 +3,14 @@ package usecase
 import (
 	"database/sql"
 	"errors"
+	"go.uber.org/zap"
 	"math/rand"
 	"net/url"
 	"regexp"
+	"time"
 
 	"github.com/MisterMaks/go-yandex-shortener/internal/app"
+	loggerInternal "github.com/MisterMaks/go-yandex-shortener/internal/logger"
 )
 
 const (
@@ -55,6 +58,7 @@ type AppRepoInterface interface {
 	CheckIDExistence(id string) (bool, error)
 	GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error)
 	GetUserURLs(userID uint) ([]*app.URL, error)
+	DeleteUserURLs(urls []*app.URL) error
 }
 
 type AppUsecase struct {
@@ -66,9 +70,18 @@ type AppUsecase struct {
 	MaxLengthID                   uint
 
 	db *sql.DB
+
+	deleteURLsChan   chan *app.URL
+	deleteURLsTicker *time.Ticker
 }
 
-func NewAppUsecase(appRepo AppRepoInterface, baseURL string, countRegenerationsForLengthID, lengthID, maxLengthID uint, db *sql.DB) (*AppUsecase, error) {
+func NewAppUsecase(
+	appRepo AppRepoInterface,
+	baseURL string,
+	countRegenerationsForLengthID, lengthID, maxLengthID uint,
+	db *sql.DB,
+	deleteURLsWaitingTime time.Duration,
+) (*AppUsecase, error) {
 	if lengthID == 0 {
 		return nil, ErrZeroLengthID
 	}
@@ -85,14 +98,21 @@ func NewAppUsecase(appRepo AppRepoInterface, baseURL string, countRegenerationsF
 	if u.Path == "" {
 		return nil, ErrInvalidBaseURL
 	}
-	return &AppUsecase{
+
+	appUsecase := &AppUsecase{
 		AppRepo:                       appRepo,
 		BaseURL:                       baseURL,
 		CountRegenerationsForLengthID: countRegenerationsForLengthID,
 		LengthID:                      lengthID,
 		MaxLengthID:                   maxLengthID,
 		db:                            db,
-	}, nil
+		deleteURLsChan:                make(chan *app.URL),
+		deleteURLsTicker:              time.NewTicker(deleteURLsWaitingTime),
+	}
+
+	go appUsecase.deleteUserURLs()
+
+	return appUsecase, nil
 }
 
 func (au *AppUsecase) generateID() (string, error) {
@@ -199,4 +219,48 @@ func (au *AppUsecase) GetUserURLs(userID uint) ([]app.ResponseUserURL, error) {
 	}
 
 	return responseUserURLs, nil
+}
+
+func (au *AppUsecase) SendDeleteUserURLsInChan(userID uint, urlIDs []string) error {
+	go func() {
+		for _, urlID := range urlIDs {
+			select {
+			case au.deleteURLsChan <- &app.URL{ID: urlID, UserID: userID}:
+			}
+		}
+	}()
+	return nil
+}
+
+func (au *AppUsecase) deleteUserURLs() {
+	logger := loggerInternal.Log
+
+	var urls []*app.URL
+
+	for {
+		select {
+		case appURL := <-au.deleteURLsChan:
+			urls = append(urls, appURL)
+		case <-au.deleteURLsTicker.C:
+			if len(urls) == 0 {
+				continue
+			}
+			logger.Debug("Deleting user URLs",
+				zap.Any("urls", urls),
+			)
+			err := au.AppRepo.DeleteUserURLs(urls)
+			if err != nil {
+				logger.Error("Failed to delete user URLs",
+					zap.Error(err),
+				)
+				continue
+			}
+			urls = nil
+		}
+	}
+}
+
+func (au *AppUsecase) Close() error {
+	close(au.deleteURLsChan)
+	return nil
 }
