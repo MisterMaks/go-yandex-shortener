@@ -80,6 +80,7 @@ func NewAppUsecase(
 	baseURL string,
 	countRegenerationsForLengthID, lengthID, maxLengthID uint,
 	db *sql.DB,
+	deleteURLsChanSize uint,
 	deleteURLsWaitingTime time.Duration,
 ) (*AppUsecase, error) {
 	if lengthID == 0 {
@@ -106,7 +107,7 @@ func NewAppUsecase(
 		LengthID:                      lengthID,
 		MaxLengthID:                   maxLengthID,
 		db:                            db,
-		deleteURLsChan:                make(chan *app.URL),
+		deleteURLsChan:                make(chan *app.URL, deleteURLsChanSize),
 		deleteURLsTicker:              time.NewTicker(deleteURLsWaitingTime),
 	}
 

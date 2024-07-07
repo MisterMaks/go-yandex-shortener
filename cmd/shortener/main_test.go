@@ -74,6 +74,11 @@ func (tau *testAppUsecase) GetUserURLs(userID uint) ([]app.ResponseUserURL, erro
 	return []app.ResponseUserURL{}, nil
 }
 
+// TODO
+func (tau *testAppUsecase) SendDeleteUserURLsInChan(userID uint, urlIDs []string) error {
+	return nil
+}
+
 func testRequest(
 	t *testing.T,
 	ts *httptest.Server,

@@ -3,6 +3,7 @@ package usecase
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 	"github.com/stretchr/testify/assert"
@@ -96,6 +97,11 @@ func (tar *testAppRepo) GetUserURLs(userID uint) ([]*app.URL, error) {
 	return []*app.URL{}, nil
 }
 
+// TODO
+func (tar *testAppRepo) DeleteUserURLs(urls []*app.URL) error {
+	return nil
+}
+
 func TestNewAppUsecase(t *testing.T) {
 	type args struct {
 		resultAddrPrefix              string
@@ -128,6 +134,8 @@ func TestNewAppUsecase(t *testing.T) {
 					CountRegenerationsForLengthID: 1,
 					LengthID:                      1,
 					MaxLengthID:                   1,
+					deleteURLsTicker:              time.NewTicker(5 * time.Second),
+					deleteURLsChan:                make(chan *app.URL, 1024),
 				},
 				wantErr: false,
 			},
@@ -202,13 +210,22 @@ func TestNewAppUsecase(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tar := &testAppRepo{}
-			appUsecase, err := NewAppUsecase(tar, tt.args.resultAddrPrefix, tt.args.countRegenerationsForLengthID, tt.args.lengthID, tt.args.maxLengthID, nil)
+			appUsecase, err := NewAppUsecase(
+				tar,
+				tt.args.resultAddrPrefix,
+				tt.args.countRegenerationsForLengthID,
+				tt.args.lengthID,
+				tt.args.maxLengthID,
+				nil,
+				1024,
+				5*time.Second,
+			)
 			if tt.want.wantErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 			}
-			assert.Equal(t, tt.want.appUsecase, appUsecase)
+			assert.EqualExportedValues(t, tt.want.appUsecase, appUsecase)
 		})
 	}
 }

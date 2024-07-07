@@ -34,6 +34,7 @@ const (
 	SecretKey                     string = "supersecretkey"
 	TokenExp                             = time.Hour * 3
 	DeleteURLsWaitingTime                = 5 * time.Second
+	DeleteURLsChanSize            uint   = 1024
 
 	ConfigKey string = "config"
 	AddrKey   string = "addr"
@@ -188,6 +189,7 @@ func main() {
 		LengthID,
 		MaxLengthID,
 		db,
+		DeleteURLsChanSize,
 		DeleteURLsWaitingTime,
 	)
 	if err != nil {
