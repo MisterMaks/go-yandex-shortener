@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"go.uber.org/zap"
@@ -71,8 +72,10 @@ type AppUsecase struct {
 
 	db *sql.DB
 
-	deleteURLsChan   chan *app.URL
-	deleteURLsTicker *time.Ticker
+	deleteURLsChan      chan *app.URL
+	deleteURLsTicker    *time.Ticker
+	deleteURLsCtx       context.Context
+	deleteURLsCtxCancel context.CancelFunc
 }
 
 func NewAppUsecase(
@@ -100,6 +103,8 @@ func NewAppUsecase(
 		return nil, ErrInvalidBaseURL
 	}
 
+	deleteURLsCtx, deleteURLsCtxCancel := context.WithCancel(context.Background())
+
 	appUsecase := &AppUsecase{
 		AppRepo:                       appRepo,
 		BaseURL:                       baseURL,
@@ -109,6 +114,8 @@ func NewAppUsecase(
 		db:                            db,
 		deleteURLsChan:                make(chan *app.URL, deleteURLsChanSize),
 		deleteURLsTicker:              time.NewTicker(deleteURLsWaitingTime),
+		deleteURLsCtx:                 deleteURLsCtx,
+		deleteURLsCtxCancel:           deleteURLsCtxCancel,
 	}
 
 	go appUsecase.deleteUserURLs()
@@ -227,6 +234,8 @@ func (au *AppUsecase) SendDeleteUserURLsInChan(userID uint, urlIDs []string) err
 		for _, urlID := range urlIDs {
 			select {
 			case au.deleteURLsChan <- &app.URL{ID: urlID, UserID: userID}:
+			case <-au.deleteURLsCtx.Done():
+				return
 			}
 		}
 	}()
@@ -263,5 +272,6 @@ func (au *AppUsecase) deleteUserURLs() {
 
 func (au *AppUsecase) Close() error {
 	close(au.deleteURLsChan)
+	au.deleteURLsCtxCancel()
 	return nil
 }
