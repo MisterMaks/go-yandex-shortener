@@ -229,7 +229,7 @@ func (au *AppUsecase) GetUserURLs(userID uint) ([]app.ResponseUserURL, error) {
 	return responseUserURLs, nil
 }
 
-func (au *AppUsecase) SendDeleteUserURLsInChan(userID uint, urlIDs []string) error {
+func (au *AppUsecase) SendDeleteUserURLsInChan(userID uint, urlIDs []string) {
 	go func() {
 		for _, urlID := range urlIDs {
 			select {
@@ -239,7 +239,6 @@ func (au *AppUsecase) SendDeleteUserURLsInChan(userID uint, urlIDs []string) err
 			}
 		}
 	}()
-	return nil
 }
 
 func (au *AppUsecase) deleteUserURLs() {

@@ -40,7 +40,7 @@ type AppUsecaseInterface interface {
 	Ping() error
 	GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL, userID uint) ([]app.ResponseBatchURL, error)
 	GetUserURLs(userID uint) ([]app.ResponseUserURL, error)
-	SendDeleteUserURLsInChan(userID uint, urlIDs []string) error
+	SendDeleteUserURLsInChan(userID uint, urlIDs []string)
 }
 
 type AppHandler struct {
@@ -423,12 +423,7 @@ func (ah *AppHandler) APIDeleteUserURLs(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	err = ah.AppUsecase.SendDeleteUserURLsInChan(userID, req)
-	if err != nil {
-		handlerLogger.Warn("Bad request", zap.Error(err))
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+	ah.AppUsecase.SendDeleteUserURLsInChan(userID, req)
 
 	w.WriteHeader(http.StatusAccepted)
 }
