@@ -353,7 +353,16 @@ func (ah *AppHandler) APIGetUserURLs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.Context().Value(usecase.UserIDKey).(uint)
+	userID, err := usecase.GetContextUserID(r.Context())
+	if err != nil {
+		handlerLogger.Warn("No user ID",
+			zap.Any(RequestBodyKey, r.Body),
+			zap.Error(err),
+		)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	resp, err := ah.AppUsecase.GetUserURLs(userID)
 	if err != nil {
 		handlerLogger.Warn("Bad request", zap.Error(err))
@@ -404,8 +413,16 @@ func (ah *AppHandler) APIDeleteUserURLs(w http.ResponseWriter, r *http.Request) 
 
 	handlerLogger.Debug("Request data", zap.Any("url_ids", req))
 
-	userID := r.Context().Value(usecase.UserIDKey).(uint)
-	
+	userID, err := usecase.GetContextUserID(r.Context())
+	if err != nil {
+		handlerLogger.Warn("No user ID",
+			zap.Any(RequestBodyKey, r.Body),
+			zap.Error(err),
+		)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	err = ah.AppUsecase.SendDeleteUserURLsInChan(userID, req)
 	if err != nil {
 		handlerLogger.Warn("Bad request", zap.Error(err))
