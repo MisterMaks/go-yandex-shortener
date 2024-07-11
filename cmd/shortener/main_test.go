@@ -75,9 +75,7 @@ func (tau *testAppUsecase) GetUserURLs(userID uint) ([]app.ResponseUserURL, erro
 }
 
 // TODO
-func (tau *testAppUsecase) SendDeleteUserURLsInChan(userID uint, urlIDs []string) error {
-	return nil
-}
+func (tau *testAppUsecase) SendDeleteUserURLsInChan(userID uint, urlIDs []string) {}
 
 func testRequest(
 	t *testing.T,
