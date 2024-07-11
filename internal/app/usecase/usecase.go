@@ -244,7 +244,7 @@ func (au *AppUsecase) SendDeleteUserURLsInChan(userID uint, urlIDs []string) {
 func (au *AppUsecase) deleteUserURLs() {
 	logger := loggerInternal.Log
 
-	var urls []*app.URL
+	urls := make([]*app.URL, 0, 2*len(au.deleteURLsChan))
 
 	for {
 		select {
@@ -264,7 +264,7 @@ func (au *AppUsecase) deleteUserURLs() {
 				)
 				continue
 			}
-			urls = nil
+			urls = urls[:0]
 		}
 	}
 }
