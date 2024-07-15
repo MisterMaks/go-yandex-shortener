@@ -1,13 +1,17 @@
 package usecase
 
 import (
+	"context"
 	"database/sql"
 	"errors"
+	"go.uber.org/zap"
 	"math/rand"
 	"net/url"
 	"regexp"
+	"time"
 
 	"github.com/MisterMaks/go-yandex-shortener/internal/app"
+	loggerInternal "github.com/MisterMaks/go-yandex-shortener/internal/logger"
 )
 
 const (
@@ -50,10 +54,12 @@ func parseURL(rawURL string) (string, error) {
 }
 
 type AppRepoInterface interface {
-	GetOrCreateURL(id, rawURL string) (*app.URL, error)
+	GetOrCreateURL(id, rawURL string, userID uint) (*app.URL, error)
 	GetURL(id string) (*app.URL, error)
 	CheckIDExistence(id string) (bool, error)
 	GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error)
+	GetUserURLs(userID uint) ([]*app.URL, error)
+	DeleteUserURLs(urls []*app.URL) error
 }
 
 type AppUsecase struct {
@@ -65,9 +71,21 @@ type AppUsecase struct {
 	MaxLengthID                   uint
 
 	db *sql.DB
+
+	deleteURLsChan      chan *app.URL
+	deleteURLsTicker    *time.Ticker
+	deleteURLsCtx       context.Context
+	deleteURLsCtxCancel context.CancelFunc
 }
 
-func NewAppUsecase(appRepo AppRepoInterface, baseURL string, countRegenerationsForLengthID, lengthID, maxLengthID uint, db *sql.DB) (*AppUsecase, error) {
+func NewAppUsecase(
+	appRepo AppRepoInterface,
+	baseURL string,
+	countRegenerationsForLengthID, lengthID, maxLengthID uint,
+	db *sql.DB,
+	deleteURLsChanSize uint,
+	deleteURLsWaitingTime time.Duration,
+) (*AppUsecase, error) {
 	if lengthID == 0 {
 		return nil, ErrZeroLengthID
 	}
@@ -84,14 +102,25 @@ func NewAppUsecase(appRepo AppRepoInterface, baseURL string, countRegenerationsF
 	if u.Path == "" {
 		return nil, ErrInvalidBaseURL
 	}
-	return &AppUsecase{
+
+	deleteURLsCtx, deleteURLsCtxCancel := context.WithCancel(context.Background())
+
+	appUsecase := &AppUsecase{
 		AppRepo:                       appRepo,
 		BaseURL:                       baseURL,
 		CountRegenerationsForLengthID: countRegenerationsForLengthID,
 		LengthID:                      lengthID,
 		MaxLengthID:                   maxLengthID,
 		db:                            db,
-	}, nil
+		deleteURLsChan:                make(chan *app.URL, deleteURLsChanSize),
+		deleteURLsTicker:              time.NewTicker(deleteURLsWaitingTime),
+		deleteURLsCtx:                 deleteURLsCtx,
+		deleteURLsCtxCancel:           deleteURLsCtxCancel,
+	}
+
+	go appUsecase.deleteUserURLs()
+
+	return appUsecase, nil
 }
 
 func (au *AppUsecase) generateID() (string, error) {
@@ -125,7 +154,7 @@ func (au *AppUsecase) generateID() (string, error) {
 	return id, nil
 }
 
-func (au *AppUsecase) GetOrCreateURL(rawURL string) (*app.URL, bool, error) {
+func (au *AppUsecase) GetOrCreateURL(rawURL string, userID uint) (*app.URL, bool, error) {
 	_, err := parseURL(rawURL)
 	if err != nil {
 		return nil, false, err
@@ -134,7 +163,10 @@ func (au *AppUsecase) GetOrCreateURL(rawURL string) (*app.URL, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	appURL, err := au.AppRepo.GetOrCreateURL(id, rawURL)
+	appURL, err := au.AppRepo.GetOrCreateURL(id, rawURL, userID)
+	if err != nil {
+		return nil, false, err
+	}
 	return appURL, appURL.ID != id, err
 }
 
@@ -150,14 +182,14 @@ func (au *AppUsecase) Ping() error {
 	return au.db.Ping()
 }
 
-func (au *AppUsecase) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL) ([]app.ResponseBatchURL, error) {
+func (au *AppUsecase) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL, userID uint) ([]app.ResponseBatchURL, error) {
 	urls := []*app.URL{}
 	for _, rbu := range requestBatchURLs {
 		id, err := au.generateID()
 		if err != nil {
 			return nil, err
 		}
-		urls = append(urls, &app.URL{ID: id, URL: rbu.OriginalURL})
+		urls = append(urls, &app.URL{ID: id, URL: rbu.OriginalURL, UserID: userID})
 	}
 
 	urls, err := au.AppRepo.GetOrCreateURLs(urls)
@@ -178,4 +210,67 @@ func (au *AppUsecase) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL) ([
 	}
 
 	return responseBatchURLs, nil
+}
+
+func (au *AppUsecase) GetUserURLs(userID uint) ([]app.ResponseUserURL, error) {
+	urls, err := au.AppRepo.GetUserURLs(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	responseUserURLs := []app.ResponseUserURL{}
+	for _, appURL := range urls {
+		responseUserURLs = append(responseUserURLs, app.ResponseUserURL{
+			ShortURL:    au.GenerateShortURL(appURL.ID),
+			OriginalURL: appURL.URL,
+		})
+	}
+
+	return responseUserURLs, nil
+}
+
+func (au *AppUsecase) SendDeleteUserURLsInChan(userID uint, urlIDs []string) {
+	go func() {
+		for _, urlID := range urlIDs {
+			select {
+			case au.deleteURLsChan <- &app.URL{ID: urlID, UserID: userID}:
+			case <-au.deleteURLsCtx.Done():
+				return
+			}
+		}
+	}()
+}
+
+func (au *AppUsecase) deleteUserURLs() {
+	logger := loggerInternal.Log
+
+	urls := make([]*app.URL, 0, 2*len(au.deleteURLsChan))
+
+	for {
+		select {
+		case appURL := <-au.deleteURLsChan:
+			urls = append(urls, appURL)
+		case <-au.deleteURLsTicker.C:
+			if len(urls) == 0 {
+				continue
+			}
+			logger.Debug("Deleting user URLs",
+				zap.Any("urls", urls),
+			)
+			err := au.AppRepo.DeleteUserURLs(urls)
+			if err != nil {
+				logger.Error("Failed to delete user URLs",
+					zap.Error(err),
+				)
+				continue
+			}
+			urls = urls[:0]
+		}
+	}
+}
+
+func (au *AppUsecase) Close() error {
+	close(au.deleteURLsChan)
+	au.deleteURLsCtxCancel()
+	return nil
 }

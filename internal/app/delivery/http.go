@@ -10,6 +10,7 @@ import (
 
 	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 	"github.com/MisterMaks/go-yandex-shortener/internal/logger"
+	"github.com/MisterMaks/go-yandex-shortener/internal/user/usecase"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
@@ -29,14 +30,17 @@ const (
 	ShortURLKey       string = "short_url"
 	RequestPathIDKey  string = "request_path_id"
 	ResponseKey       string = "response"
+	UserIDKey         string = "user_id"
 )
 
 type AppUsecaseInterface interface {
-	GetOrCreateURL(rawURL string) (*app.URL, bool, error)
+	GetOrCreateURL(rawURL string, userID uint) (*app.URL, bool, error)
 	GetURL(id string) (*app.URL, error)
 	GenerateShortURL(id string) string
 	Ping() error
-	GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL) ([]app.ResponseBatchURL, error)
+	GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL, userID uint) ([]app.ResponseBatchURL, error)
+	GetUserURLs(userID uint) ([]app.ResponseUserURL, error)
+	SendDeleteUserURLsInChan(userID uint, urlIDs []string)
 }
 
 type AppHandler struct {
@@ -48,7 +52,7 @@ func NewAppHandler(appUsecase AppUsecaseInterface) *AppHandler {
 }
 
 func (ah *AppHandler) GetOrCreateURL(w http.ResponseWriter, r *http.Request) {
-	handlerLogger := logger.GetLoggerWithRequestID(r.Context())
+	handlerLogger := logger.GetContextLogger(r.Context())
 
 	handlerLogger.Info("Creating or getting URL")
 
@@ -80,9 +84,19 @@ func (ah *AppHandler) GetOrCreateURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID, err := usecase.GetContextUserID(r.Context())
+	if err != nil {
+		handlerLogger.Warn("No user ID",
+			zap.Any(RequestBodyKey, r.Body),
+			zap.Error(err),
+		)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	bodyStr := string(body)
 
-	url, exists, err := ah.AppUsecase.GetOrCreateURL(bodyStr)
+	url, exists, err := ah.AppUsecase.GetOrCreateURL(bodyStr, userID)
 	if err != nil {
 		handlerLogger.Warn("Bad request",
 			zap.String(RequestBodyStrKey, bodyStr),
@@ -109,7 +123,7 @@ func (ah *AppHandler) GetOrCreateURL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ah *AppHandler) APIGetOrCreateURL(w http.ResponseWriter, r *http.Request) {
-	handlerLogger := logger.GetLoggerWithRequestID(r.Context())
+	handlerLogger := logger.GetContextLogger(r.Context())
 
 	handlerLogger.Info("Creating or getting URL using API")
 
@@ -147,7 +161,17 @@ func (ah *AppHandler) APIGetOrCreateURL(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	url, exists, err := ah.AppUsecase.GetOrCreateURL(req.URL)
+	userID, err := usecase.GetContextUserID(r.Context())
+	if err != nil {
+		handlerLogger.Warn("No user ID",
+			zap.Any(RequestBodyKey, r.Body),
+			zap.Error(err),
+		)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	url, exists, err := ah.AppUsecase.GetOrCreateURL(req.URL, userID)
 	if err != nil {
 		handlerLogger.Warn("Bad request",
 			zap.String(URLKey, req.URL),
@@ -182,7 +206,7 @@ func (ah *AppHandler) APIGetOrCreateURL(w http.ResponseWriter, r *http.Request) 
 }
 
 func (ah *AppHandler) RedirectToURL(w http.ResponseWriter, r *http.Request) {
-	handlerLogger := logger.GetLoggerWithRequestID(r.Context())
+	handlerLogger := logger.GetContextLogger(r.Context())
 
 	handlerLogger.Info("Redirecting to URL")
 
@@ -213,16 +237,20 @@ func (ah *AppHandler) RedirectToURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	handlerLogger.Info("Found short URL",
-		zap.String(URLIDKey, url.ID),
-		zap.String(URLKey, url.URL),
+	handlerLogger.Info("Found URL",
+		zap.Any(URLKey, url),
 	)
+
+	if url.IsDeleted {
+		w.WriteHeader(http.StatusGone)
+		return
+	}
 
 	http.Redirect(w, r, url.URL, http.StatusTemporaryRedirect)
 }
 
 func (ah *AppHandler) Ping(w http.ResponseWriter, r *http.Request) {
-	handlerLogger := logger.GetLoggerWithRequestID(r.Context())
+	handlerLogger := logger.GetContextLogger(r.Context())
 
 	handlerLogger.Info("Ping DB")
 
@@ -246,7 +274,7 @@ func (ah *AppHandler) Ping(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ah *AppHandler) APIGetOrCreateURLs(w http.ResponseWriter, r *http.Request) {
-	handlerLogger := logger.GetLoggerWithRequestID(r.Context())
+	handlerLogger := logger.GetContextLogger(r.Context())
 
 	handlerLogger.Info("Creating or getting URLs batch using API")
 
@@ -280,7 +308,17 @@ func (ah *AppHandler) APIGetOrCreateURLs(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	resp, err := ah.AppUsecase.GetOrCreateURLs(req)
+	userID, err := usecase.GetContextUserID(r.Context())
+	if err != nil {
+		handlerLogger.Warn("No user ID",
+			zap.Any(RequestBodyKey, r.Body),
+			zap.Error(err),
+		)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	resp, err := ah.AppUsecase.GetOrCreateURLs(req, userID)
 	if err != nil {
 		handlerLogger.Warn("Bad request",
 			zap.Any(URLsKey, req),
@@ -302,4 +340,90 @@ func (ah *AppHandler) APIGetOrCreateURLs(w http.ResponseWriter, r *http.Request)
 		)
 		return
 	}
+}
+
+func (ah *AppHandler) APIGetUserURLs(w http.ResponseWriter, r *http.Request) {
+	handlerLogger := logger.GetContextLogger(r.Context())
+
+	handlerLogger.Info("Getting user URLs using API")
+
+	if r.Method != http.MethodGet {
+		handlerLogger.Warn("Request method is not GET", zap.String(MethodKey, r.Method))
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID, err := usecase.GetContextUserID(r.Context())
+	if err != nil {
+		handlerLogger.Warn("No user ID",
+			zap.Any(RequestBodyKey, r.Body),
+			zap.Error(err),
+		)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	resp, err := ah.AppUsecase.GetUserURLs(userID)
+	if err != nil {
+		handlerLogger.Warn("Bad request", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if len(resp) == 0 {
+		handlerLogger.Warn("No content")
+		w.WriteHeader(http.StatusNoContent)
+	}
+
+	w.Header().Set(ContentTypeKey, ApplicationJSONKey)
+
+	enc := json.NewEncoder(w)
+	err = enc.Encode(resp)
+	if err != nil {
+		handlerLogger.Warn("Bad request",
+			zap.Any(ResponseKey, resp),
+			zap.Error(err),
+		)
+		return
+	}
+}
+
+func (ah *AppHandler) APIDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
+	handlerLogger := logger.GetContextLogger(r.Context())
+
+	handlerLogger.Info("Deleting user URLs using API")
+
+	if r.Method != http.MethodDelete {
+		handlerLogger.Warn("Request method is not DELETE", zap.String(MethodKey, r.Method))
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req []string
+	dec := json.NewDecoder(r.Body)
+	err := dec.Decode(&req)
+	if err != nil {
+		handlerLogger.Warn("Bad request",
+			zap.Any(RequestBodyKey, r.Body),
+			zap.Error(err),
+		)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	handlerLogger.Debug("Request data", zap.Any("url_ids", req))
+
+	userID, err := usecase.GetContextUserID(r.Context())
+	if err != nil {
+		handlerLogger.Warn("No user ID",
+			zap.Any(RequestBodyKey, r.Body),
+			zap.Error(err),
+		)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	ah.AppUsecase.SendDeleteUserURLsInChan(userID, req)
+
+	w.WriteHeader(http.StatusAccepted)
 }

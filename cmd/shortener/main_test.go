@@ -2,7 +2,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
+	"github.com/MisterMaks/go-yandex-shortener/internal/gzip"
+	"github.com/MisterMaks/go-yandex-shortener/internal/logger"
+	"github.com/MisterMaks/go-yandex-shortener/internal/user/usecase"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -20,6 +24,7 @@ const (
 	TestID         string = "1"
 	ContentTypeKey string = "Content-Type"
 	TextPlainKey   string = "text/plain"
+	TestUserID     uint   = 1
 )
 
 var (
@@ -29,7 +34,7 @@ var (
 
 type testAppUsecase struct{}
 
-func (tau *testAppUsecase) GetOrCreateURL(rawURL string) (*app.URL, bool, error) {
+func (tau *testAppUsecase) GetOrCreateURL(rawURL string, userID uint) (*app.URL, bool, error) {
 	switch rawURL {
 	case TestValidURL:
 		return &app.URL{
@@ -60,9 +65,17 @@ func (tau *testAppUsecase) Ping() error {
 }
 
 // TODO
-func (tau *testAppUsecase) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL) ([]app.ResponseBatchURL, error) {
+func (tau *testAppUsecase) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL, userID uint) ([]app.ResponseBatchURL, error) {
 	return []app.ResponseBatchURL{}, nil
 }
+
+// TODO
+func (tau *testAppUsecase) GetUserURLs(userID uint) ([]app.ResponseUserURL, error) {
+	return []app.ResponseUserURL{}, nil
+}
+
+// TODO
+func (tau *testAppUsecase) SendDeleteUserURLsInChan(userID uint, urlIDs []string) {}
 
 func testRequest(
 	t *testing.T,
@@ -79,7 +92,18 @@ func testRequest(
 func TestRouter(t *testing.T) {
 	tau := &testAppUsecase{}
 	appHandler := appDeliveryInternal.NewAppHandler(tau)
-	ts := httptest.NewServer(shortenerRouter(appHandler, "/"))
+	middlewares := &Middlewares{
+		RequestLogger:  logger.RequestLogger,
+		GzipMiddleware: gzip.GzipMiddleware,
+		AuthenticateOrRegister: func(h http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				ctx := context.WithValue(r.Context(), usecase.UserIDKey, TestUserID)
+				h.ServeHTTP(w, r.WithContext(ctx))
+			})
+		},
+		Authenticate: func(h http.Handler) http.Handler { return h },
+	}
+	ts := httptest.NewServer(shortenerRouter(appHandler, "/", middlewares))
 	defer ts.Close()
 	client := ts.Client()
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {

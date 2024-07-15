@@ -3,6 +3,7 @@ package usecase
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 	"github.com/stretchr/testify/assert"
@@ -66,8 +67,8 @@ func Test_generateID(t *testing.T) {
 
 type testAppRepo struct{}
 
-func (tar *testAppRepo) GetOrCreateURL(_, rawURL string) (*app.URL, error) {
-	url := &app.URL{ID: TestURLID, URL: rawURL}
+func (tar *testAppRepo) GetOrCreateURL(_, rawURL string, userID uint) (*app.URL, error) {
+	url := &app.URL{ID: TestURLID, URL: rawURL, UserID: userID}
 	return url, nil
 }
 
@@ -89,6 +90,16 @@ func (tar *testAppRepo) CheckIDExistence(id string) (bool, error) {
 // TODO
 func (tar *testAppRepo) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error) {
 	return []*app.URL{}, nil
+}
+
+// TODO
+func (tar *testAppRepo) GetUserURLs(userID uint) ([]*app.URL, error) {
+	return []*app.URL{}, nil
+}
+
+// TODO
+func (tar *testAppRepo) DeleteUserURLs(urls []*app.URL) error {
+	return nil
 }
 
 func TestNewAppUsecase(t *testing.T) {
@@ -123,6 +134,8 @@ func TestNewAppUsecase(t *testing.T) {
 					CountRegenerationsForLengthID: 1,
 					LengthID:                      1,
 					MaxLengthID:                   1,
+					deleteURLsTicker:              time.NewTicker(5 * time.Second),
+					deleteURLsChan:                make(chan *app.URL, 1024),
 				},
 				wantErr: false,
 			},
@@ -197,13 +210,22 @@ func TestNewAppUsecase(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tar := &testAppRepo{}
-			appUsecase, err := NewAppUsecase(tar, tt.args.resultAddrPrefix, tt.args.countRegenerationsForLengthID, tt.args.lengthID, tt.args.maxLengthID, nil)
+			appUsecase, err := NewAppUsecase(
+				tar,
+				tt.args.resultAddrPrefix,
+				tt.args.countRegenerationsForLengthID,
+				tt.args.lengthID,
+				tt.args.maxLengthID,
+				nil,
+				1024,
+				5*time.Second,
+			)
 			if tt.want.wantErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 			}
-			assert.Equal(t, tt.want.appUsecase, appUsecase)
+			assert.EqualExportedValues(t, tt.want.appUsecase, appUsecase)
 		})
 	}
 }
@@ -216,6 +238,7 @@ func TestAppUsecase_GetOrCreateURL(t *testing.T) {
 	}
 	type args struct {
 		rawURL string
+		userID uint
 	}
 	type want struct {
 		url *app.URL
@@ -237,9 +260,10 @@ func TestAppUsecase_GetOrCreateURL(t *testing.T) {
 			},
 			args: args{
 				rawURL: TestURL,
+				userID: 1,
 			},
 			want: want{
-				url: &app.URL{ID: TestURLID, URL: TestURL},
+				url: &app.URL{ID: TestURLID, URL: TestURL, UserID: 1},
 				err: nil,
 			},
 		},
@@ -252,6 +276,7 @@ func TestAppUsecase_GetOrCreateURL(t *testing.T) {
 			},
 			args: args{
 				rawURL: TestURL,
+				userID: 1,
 			},
 			want: want{
 				url: nil,
@@ -259,7 +284,7 @@ func TestAppUsecase_GetOrCreateURL(t *testing.T) {
 			},
 		},
 		{
-			name: "test 2",
+			name: "test 3",
 			fields: fields{
 				countRegenerationsForLengthID: 1,
 				lengthID:                      0,
@@ -267,6 +292,7 @@ func TestAppUsecase_GetOrCreateURL(t *testing.T) {
 			},
 			args: args{
 				rawURL: TestURL,
+				userID: 1,
 			},
 			want: want{
 				url: nil,
@@ -285,7 +311,7 @@ func TestAppUsecase_GetOrCreateURL(t *testing.T) {
 				LengthID:                      tt.fields.lengthID,
 				MaxLengthID:                   tt.fields.maxLengthID,
 			}
-			url, _, err := au.GetOrCreateURL(tt.args.rawURL)
+			url, _, err := au.GetOrCreateURL(tt.args.rawURL, tt.args.userID)
 			assert.ErrorIs(t, err, tt.want.err)
 			assert.Equal(t, tt.want.url, url)
 		})

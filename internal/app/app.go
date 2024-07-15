@@ -1,8 +1,10 @@
 package app
 
 type URL struct {
-	ID  string
-	URL string
+	ID        string
+	URL       string
+	UserID    uint
+	IsDeleted bool
 }
 
 type RequestBatchURL struct {
@@ -13,4 +15,9 @@ type RequestBatchURL struct {
 type ResponseBatchURL struct {
 	CorrelationID string `json:"correlation_id"`
 	ShortURL      string `json:"short_url"`
+}
+
+type ResponseUserURL struct {
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
 }

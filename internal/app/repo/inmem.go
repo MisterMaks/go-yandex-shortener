@@ -44,7 +44,7 @@ func NewAppRepoInmem(filename string) (*AppRepoInmem, error) {
 	}, nil
 }
 
-func (ari *AppRepoInmem) GetOrCreateURL(id, rawURL string) (*app.URL, error) {
+func (ari *AppRepoInmem) GetOrCreateURL(id, rawURL string, userID uint) (*app.URL, error) {
 	ari.mu.Lock()
 	defer ari.mu.Unlock()
 	for _, url := range ari.urls {
@@ -52,7 +52,7 @@ func (ari *AppRepoInmem) GetOrCreateURL(id, rawURL string) (*app.URL, error) {
 			return url, nil
 		}
 	}
-	url := &app.URL{ID: id, URL: rawURL}
+	url := &app.URL{ID: id, URL: rawURL, UserID: userID}
 	ari.urls = append(ari.urls, url)
 
 	if ari.producer != nil {
@@ -96,11 +96,12 @@ func (ari *AppRepoInmem) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error) {
 		for _, ariURL := range ari.urls {
 			if url.URL == ariURL.URL {
 				url.ID = ariURL.ID
+				url.UserID = ariURL.UserID
 				continue
 			}
 		}
 
-		url := &app.URL{ID: url.ID, URL: url.URL}
+		url := &app.URL{ID: url.ID, URL: url.URL, UserID: url.UserID}
 		ari.urls = append(ari.urls, url)
 
 		if ari.producer != nil {
@@ -109,4 +110,33 @@ func (ari *AppRepoInmem) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error) {
 	}
 
 	return urls, nil
+}
+
+func (ari *AppRepoInmem) GetUserURLs(userID uint) ([]*app.URL, error) {
+	ari.mu.RLock()
+	defer ari.mu.RUnlock()
+
+	userURLs := []*app.URL{}
+	for _, url := range ari.urls {
+		if url.UserID == userID {
+			userURLs = append(userURLs, url)
+		}
+	}
+
+	return userURLs, nil
+}
+
+func (ari *AppRepoInmem) DeleteUserURLs(urls []*app.URL) error {
+	ari.mu.Lock()
+	defer ari.mu.Unlock()
+
+	for _, url := range urls {
+		for _, ariURL := range ari.urls {
+			if url.ID == ariURL.ID && url.UserID == ariURL.UserID {
+				ariURL.IsDeleted = true
+			}
+		}
+	}
+
+	return nil
 }

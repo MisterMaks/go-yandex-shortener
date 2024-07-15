@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/MisterMaks/go-yandex-shortener/internal/user/usecase"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -20,6 +21,7 @@ const (
 	TestInvalidURL string = "invalid_url"
 	TestID         string = "1"
 	TestHost       string = "http://example.com"
+	TestUserID     uint   = 1
 )
 
 var (
@@ -29,12 +31,13 @@ var (
 
 type testAppUsecase struct{}
 
-func (tau *testAppUsecase) GetOrCreateURL(rawURL string) (*app.URL, bool, error) {
+func (tau *testAppUsecase) GetOrCreateURL(rawURL string, userID uint) (*app.URL, bool, error) {
 	switch rawURL {
 	case TestValidURL:
 		return &app.URL{
-			ID:  TestID,
-			URL: TestValidURL,
+			ID:     TestID,
+			URL:    TestValidURL,
+			UserID: TestUserID,
 		}, false, nil
 	}
 	return nil, false, ErrTestInvalidURL
@@ -60,9 +63,17 @@ func (tau *testAppUsecase) Ping() error {
 }
 
 // TODO
-func (tau *testAppUsecase) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL) ([]app.ResponseBatchURL, error) {
+func (tau *testAppUsecase) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL, userID uint) ([]app.ResponseBatchURL, error) {
 	return []app.ResponseBatchURL{}, nil
 }
+
+// TODO
+func (tau *testAppUsecase) GetUserURLs(userID uint) ([]app.ResponseUserURL, error) {
+	return []app.ResponseUserURL{}, nil
+}
+
+// TODO
+func (tau *testAppUsecase) SendDeleteUserURLsInChan(userID uint, urlIDs []string) {}
 
 func TestAppHandler_GetOrCreateURL(t *testing.T) {
 	type request struct {
@@ -143,9 +154,12 @@ func TestAppHandler_GetOrCreateURL(t *testing.T) {
 
 			req := httptest.NewRequest(tt.request.method, tt.request.url, bodyReader)
 			req.Header.Add(ContentTypeKey, tt.request.contentType)
+
+			ctx := context.WithValue(req.Context(), usecase.UserIDKey, TestUserID)
+
 			w := httptest.NewRecorder()
 
-			appHandler.GetOrCreateURL(w, req)
+			appHandler.GetOrCreateURL(w, req.WithContext(ctx))
 
 			res := w.Result()
 
@@ -242,9 +256,12 @@ func TestAppHandler_APIGetOrCreateURL(t *testing.T) {
 
 			req := httptest.NewRequest(tt.request.method, tt.request.url, bodyReader)
 			req.Header.Add(ContentTypeKey, tt.request.contentType)
+
+			ctx := context.WithValue(req.Context(), usecase.UserIDKey, TestUserID)
+
 			w := httptest.NewRecorder()
 
-			appHandler.APIGetOrCreateURL(w, req)
+			appHandler.APIGetOrCreateURL(w, req.WithContext(ctx))
 
 			res := w.Result()
 
