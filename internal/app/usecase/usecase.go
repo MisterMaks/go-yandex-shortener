@@ -1,14 +1,14 @@
 package usecase
 
 import (
-	"context"
 	"database/sql"
 	"errors"
-	"go.uber.org/zap"
 	"math/rand"
 	"net/url"
 	"regexp"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 	loggerInternal "github.com/MisterMaks/go-yandex-shortener/internal/logger"
@@ -72,10 +72,10 @@ type AppUsecase struct {
 
 	db *sql.DB
 
-	deleteURLsChan      chan *app.URL
-	deleteURLsTicker    *time.Ticker
-	deleteURLsCtx       context.Context
-	deleteURLsCtxCancel context.CancelFunc
+	deleteURLsChan   chan *app.URL
+	deleteURLsTicker *time.Ticker
+
+	doneCh chan struct{}
 }
 
 func NewAppUsecase(
@@ -103,7 +103,7 @@ func NewAppUsecase(
 		return nil, ErrInvalidBaseURL
 	}
 
-	deleteURLsCtx, deleteURLsCtxCancel := context.WithCancel(context.Background())
+	doneCh := make(chan struct{})
 
 	appUsecase := &AppUsecase{
 		AppRepo:                       appRepo,
@@ -114,8 +114,8 @@ func NewAppUsecase(
 		db:                            db,
 		deleteURLsChan:                make(chan *app.URL, deleteURLsChanSize),
 		deleteURLsTicker:              time.NewTicker(deleteURLsWaitingTime),
-		deleteURLsCtx:                 deleteURLsCtx,
-		deleteURLsCtxCancel:           deleteURLsCtxCancel,
+
+		doneCh: doneCh,
 	}
 
 	go appUsecase.deleteUserURLs()
@@ -234,7 +234,7 @@ func (au *AppUsecase) SendDeleteUserURLsInChan(userID uint, urlIDs []string) {
 		for _, urlID := range urlIDs {
 			select {
 			case au.deleteURLsChan <- &app.URL{ID: urlID, UserID: userID}:
-			case <-au.deleteURLsCtx.Done():
+			case <-au.doneCh:
 				return
 			}
 		}
@@ -271,6 +271,6 @@ func (au *AppUsecase) deleteUserURLs() {
 
 func (au *AppUsecase) Close() error {
 	close(au.deleteURLsChan)
-	au.deleteURLsCtxCancel()
+	close(au.doneCh)
 	return nil
 }
