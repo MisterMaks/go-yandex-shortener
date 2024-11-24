@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"log"
 	"os"
 	"sync"
 	"testing"
@@ -10,14 +11,19 @@ import (
 )
 
 const (
-	TestFilename string = "../../../test/internal_app_repo_inmem_test.txt"
+	TestFilenamePattern string = "internal_app_repo_inmem_test_*.txt"
 )
 
 func TestNewAppRepoInmem(t *testing.T) {
-	appRepoInMem, err := NewAppRepoInmem(TestFilename)
+	tmpFile, err := os.CreateTemp("", TestFilenamePattern)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	appRepoInMem, err := NewAppRepoInmem(tmpFile.Name())
 	assert.NoError(t, err)
 	assert.NotNil(t, appRepoInMem)
-	os.Remove(TestFilename)
 }
 
 func TestAppRepoInmem_GetOrCreateURL(t *testing.T) {
@@ -80,9 +86,15 @@ func TestAppRepoInmem_GetOrCreateURL(t *testing.T) {
 		},
 	}
 
+	tmpFile, err := os.CreateTemp("", TestFilenamePattern)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			producer, err := newProducer(TestFilename)
+			producer, err := newProducer(tmpFile.Name())
 			if err != nil {
 				t.Fatalf("CRITICAL\tUnexpected error. Error: %v\n", err)
 			}
@@ -101,7 +113,6 @@ func TestAppRepoInmem_GetOrCreateURL(t *testing.T) {
 			assert.Contains(t, ari.urls, url)
 		})
 	}
-	os.Remove(TestFilename)
 }
 
 func TestAppRepoInmem_GetURL(t *testing.T) {
@@ -168,7 +179,6 @@ func TestAppRepoInmem_GetURL(t *testing.T) {
 			assert.Equal(t, tt.want.url, url)
 		})
 	}
-	os.Remove(TestFilename)
 }
 
 func TestAppRepoInmem_CheckIDExistence(t *testing.T) {
@@ -216,9 +226,16 @@ func TestAppRepoInmem_CheckIDExistence(t *testing.T) {
 			},
 		},
 	}
+
+	tmpFile, err := os.CreateTemp("", TestFilenamePattern)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			producer, err := newProducer(TestFilename)
+			producer, err := newProducer(tmpFile.Name())
 			if err != nil {
 				t.Fatalf("CRITICAL\tUnexpected error. Error: %v\n", err)
 			}
@@ -236,5 +253,4 @@ func TestAppRepoInmem_CheckIDExistence(t *testing.T) {
 			assert.Equal(t, tt.want.checked, checked)
 		})
 	}
-	os.Remove(TestFilename)
 }
