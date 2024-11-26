@@ -85,7 +85,11 @@ func (ari *AppRepoInmem) CheckIDExistence(id string) (bool, error) {
 }
 
 func (ari *AppRepoInmem) Close() error {
-	return ari.producer.close()
+	if ari.producer != nil {
+		return ari.producer.close()
+	}
+
+	return nil
 }
 
 func (ari *AppRepoInmem) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error) {
