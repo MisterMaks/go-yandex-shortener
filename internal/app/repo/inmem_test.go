@@ -1,13 +1,13 @@
 package repo
 
 import (
-	"log"
 	"os"
 	"sync"
 	"testing"
 
 	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -16,9 +16,7 @@ const (
 
 func TestNewAppRepoInmem(t *testing.T) {
 	tmpFile, err := os.CreateTemp("", TestFilenamePattern)
-	if err != nil {
-		log.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
 
 	appRepoInMem, err := NewAppRepoInmem(tmpFile.Name())
@@ -87,9 +85,7 @@ func TestAppRepoInmem_GetOrCreateURL(t *testing.T) {
 	}
 
 	tmpFile, err := os.CreateTemp("", TestFilenamePattern)
-	if err != nil {
-		log.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
 
 	for _, tt := range tests {
@@ -228,9 +224,7 @@ func TestAppRepoInmem_CheckIDExistence(t *testing.T) {
 	}
 
 	tmpFile, err := os.CreateTemp("", TestFilenamePattern)
-	if err != nil {
-		log.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
 
 	for _, tt := range tests {
