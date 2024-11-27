@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	COUNT_URLS = 100000
+	CountURLs = 100000
 )
 
 func BenchmarkConsumerReadURLs(b *testing.B) {
@@ -30,7 +30,7 @@ func BenchmarkConsumerReadURLs(b *testing.B) {
 		producer, err := newProducer(tmpFile.Name())
 		require.NoError(b, err)
 
-		for i := 0; i < COUNT_URLS; i++ {
+		for i := 0; i < CountURLs; i++ {
 			err = producer.writeURL(url)
 			require.NoError(b, err)
 		}
