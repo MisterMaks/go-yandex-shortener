@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/MisterMaks/go-yandex-shortener/internal/user/usecase"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/MisterMaks/go-yandex-shortener/internal/app/delivery/mocks"
+	"github.com/MisterMaks/go-yandex-shortener/internal/user/usecase"
+	"github.com/golang/mock/gomock"
 
 	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 	"github.com/go-chi/chi/v5"
@@ -28,52 +31,6 @@ var (
 	ErrTestInvalidURL = errors.New("invalid url")
 	ErrTestIDNotFound = errors.New("ID not found")
 )
-
-type testAppUsecase struct{}
-
-func (tau *testAppUsecase) GetOrCreateURL(rawURL string, userID uint) (*app.URL, bool, error) {
-	switch rawURL {
-	case TestValidURL:
-		return &app.URL{
-			ID:     TestID,
-			URL:    TestValidURL,
-			UserID: TestUserID,
-		}, false, nil
-	}
-	return nil, false, ErrTestInvalidURL
-}
-
-func (tau *testAppUsecase) GetURL(id string) (*app.URL, error) {
-	switch id {
-	case TestID:
-		return &app.URL{
-			ID:  TestID,
-			URL: TestValidURL,
-		}, nil
-	}
-	return nil, ErrTestIDNotFound
-}
-
-func (tau *testAppUsecase) GenerateShortURL(id string) string {
-	return id
-}
-
-func (tau *testAppUsecase) Ping() error {
-	return nil
-}
-
-// TODO
-func (tau *testAppUsecase) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL, userID uint) ([]app.ResponseBatchURL, error) {
-	return []app.ResponseBatchURL{}, nil
-}
-
-// TODO
-func (tau *testAppUsecase) GetUserURLs(userID uint) ([]app.ResponseUserURL, error) {
-	return []app.ResponseUserURL{}, nil
-}
-
-// TODO
-func (tau *testAppUsecase) SendDeleteUserURLsInChan(userID uint, urlIDs []string) {}
 
 func TestAppHandler_GetOrCreateURL(t *testing.T) {
 	type request struct {
@@ -145,11 +102,32 @@ func TestAppHandler_GetOrCreateURL(t *testing.T) {
 		},
 	}
 
+	// создаём контроллер
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// создаём объект-заглушку
+	m := mocks.NewMockAppUsecaseInterface(ctrl)
+
+	// гарантируем, что заглушка
+	// при вызове с аргументом "Key" вернёт "Value"
+	m.EXPECT().GetOrCreateURL(TestValidURL, gomock.Any()).Return(&app.URL{
+		ID:     TestID,
+		URL:    TestValidURL,
+		UserID: TestUserID,
+	}, false, nil).AnyTimes()
+	m.EXPECT().GetOrCreateURL(gomock.Any(), gomock.Any()).Return(nil, false, ErrTestInvalidURL).AnyTimes()
+
+	m.EXPECT().GenerateShortURL(gomock.Any()).DoAndReturn(
+		func(id string) string {
+			return id
+		},
+	)
+
+	appHandler := NewAppHandler(m)
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tau := &testAppUsecase{}
-			appHandler := NewAppHandler(tau)
-
 			bodyReader := bytes.NewReader(tt.request.body)
 
 			req := httptest.NewRequest(tt.request.method, tt.request.url, bodyReader)
@@ -247,11 +225,32 @@ func TestAppHandler_APIGetOrCreateURL(t *testing.T) {
 		},
 	}
 
+	// создаём контроллер
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// создаём объект-заглушку
+	m := mocks.NewMockAppUsecaseInterface(ctrl)
+
+	// гарантируем, что заглушка
+	// при вызове с аргументом "Key" вернёт "Value"
+	m.EXPECT().GetOrCreateURL(TestValidURL, gomock.Any()).Return(&app.URL{
+		ID:     TestID,
+		URL:    TestValidURL,
+		UserID: TestUserID,
+	}, false, nil).AnyTimes()
+	m.EXPECT().GetOrCreateURL(gomock.Any(), gomock.Any()).Return(nil, false, ErrTestInvalidURL).AnyTimes()
+
+	m.EXPECT().GenerateShortURL(gomock.Any()).DoAndReturn(
+		func(id string) string {
+			return id
+		},
+	)
+
+	appHandler := NewAppHandler(m)
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tau := &testAppUsecase{}
-			appHandler := NewAppHandler(tau)
-
 			bodyReader := bytes.NewReader(tt.request.body)
 
 			req := httptest.NewRequest(tt.request.method, tt.request.url, bodyReader)
@@ -342,11 +341,25 @@ func TestAppHandler_RedirectToURL(t *testing.T) {
 		},
 	}
 
+	// создаём контроллер
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// создаём объект-заглушку
+	m := mocks.NewMockAppUsecaseInterface(ctrl)
+
+	// гарантируем, что заглушка
+	// при вызове с аргументом "Key" вернёт "Value"
+	m.EXPECT().GetURL(TestID).Return(&app.URL{
+		ID:  TestID,
+		URL: TestValidURL,
+	}, nil).AnyTimes()
+	m.EXPECT().GetURL(gomock.Any()).Return(nil, ErrTestIDNotFound).AnyTimes()
+
+	appHandler := NewAppHandler(m)
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tau := &testAppUsecase{}
-			appHandler := NewAppHandler(tau)
-
 			req := httptest.NewRequest(tt.request.method, tt.request.url+tt.request.id, nil)
 
 			rctx := chi.NewRouteContext()
