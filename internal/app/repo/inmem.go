@@ -9,6 +9,10 @@ import (
 
 var ErrURLNotFound = errors.New("url not found")
 
+const (
+	DefaultCountURLs = 256
+)
+
 type AppRepoInmem struct {
 	urls     []*app.URL
 	mu       sync.RWMutex
@@ -18,7 +22,7 @@ type AppRepoInmem struct {
 func NewAppRepoInmem(filename string) (*AppRepoInmem, error) {
 	if filename == "" {
 		return &AppRepoInmem{
-			urls:     []*app.URL{},
+			urls:     make([]*app.URL, 0, DefaultCountURLs),
 			mu:       sync.RWMutex{},
 			producer: nil,
 		}, nil

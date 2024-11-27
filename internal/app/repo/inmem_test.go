@@ -2,6 +2,7 @@ package repo
 
 import (
 	"os"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -11,7 +12,7 @@ import (
 )
 
 const (
-	TestFilenamePattern string = "internal_app_repo_inmem_test_*.txt"
+	TestFilenamePattern string = "internal_app_repo_inmem_test_*.json"
 )
 
 func TestNewAppRepoInmem(t *testing.T) {
@@ -246,5 +247,142 @@ func TestAppRepoInmem_CheckIDExistence(t *testing.T) {
 			}
 			assert.Equal(t, tt.want.checked, checked)
 		})
+	}
+}
+
+func generateTestURLID(id, userID uint) string {
+	return strconv.FormatUint(uint64(id), 10) + "_" + strconv.FormatUint(uint64(userID), 10)
+}
+
+func generateTestURLs(countUsers, countUserURLs uint) []*app.URL {
+	defaultURL := "test_url"
+	urls := make([]*app.URL, 0, countUserURLs*countUsers)
+
+	for i := uint(0); i < countUsers; i++ {
+		userID := i
+		url := defaultURL + "_" + strconv.FormatUint(uint64(i), 10)
+
+		for j := uint(0); j < countUserURLs; j++ {
+			id := generateTestURLID(j, userID)
+			urls = append(urls, &app.URL{
+				ID:        id,
+				URL:       url,
+				UserID:    userID,
+				IsDeleted: false,
+			})
+		}
+	}
+
+	return urls
+}
+
+func BenchmarkAppRepoInmem_GetOrCreateURL(b *testing.B) {
+	urls := generateTestURLs(10, 10)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+
+		appRepoInmem, err := NewAppRepoInmem("")
+		require.NoError(b, err)
+
+		for _, url := range urls {
+			b.StartTimer()
+			appRepoInmem.GetOrCreateURL(url.ID, url.URL, url.UserID)
+			b.StopTimer()
+		}
+
+		for _, url := range urls[1 : len(urls)-2] {
+			b.StartTimer()
+			appRepoInmem.GetOrCreateURL(url.ID, url.URL, url.UserID)
+			b.StopTimer()
+		}
+
+		appRepoInmem.Close()
+	}
+}
+
+func BenchmarkAppRepoInmem_GetOrCreateURLs(b *testing.B) {
+	urls := generateTestURLs(10, 10)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+
+		appRepoInmem, err := NewAppRepoInmem("")
+		require.NoError(b, err)
+
+		b.StartTimer()
+		appRepoInmem.GetOrCreateURLs(urls)
+		appRepoInmem.GetOrCreateURLs(urls[1 : len(urls)-2])
+		b.StopTimer()
+
+		appRepoInmem.Close()
+	}
+}
+
+func BenchmarkAppRepoInmem_CheckIDExistence(b *testing.B) {
+	urls := generateTestURLs(10, 10)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+
+		appRepoInmem, err := NewAppRepoInmem("")
+		require.NoError(b, err)
+
+		_, err = appRepoInmem.GetOrCreateURLs(urls)
+		require.NoError(b, err)
+
+		b.StartTimer()
+		appRepoInmem.CheckIDExistence(urls[3].ID)
+		appRepoInmem.CheckIDExistence("aaa")
+		b.StopTimer()
+
+		appRepoInmem.Close()
+	}
+}
+
+func BenchmarkAppRepoInmem_GetUserURLs(b *testing.B) {
+	urls := generateTestURLs(10, 10)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+
+		appRepoInmem, err := NewAppRepoInmem("")
+		require.NoError(b, err)
+
+		_, err = appRepoInmem.GetOrCreateURLs(urls)
+		require.NoError(b, err)
+
+		b.StartTimer()
+		appRepoInmem.GetUserURLs(urls[len(urls)/2].UserID)
+		appRepoInmem.GetUserURLs(uint(len(urls)) * 2)
+		b.StopTimer()
+
+		appRepoInmem.Close()
+	}
+}
+
+func BenchmarkAppRepoInmem_DeleteUserURLs(b *testing.B) {
+	urls := generateTestURLs(10, 10)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+
+		appRepoInmem, err := NewAppRepoInmem("")
+		require.NoError(b, err)
+
+		_, err = appRepoInmem.GetOrCreateURLs(urls)
+		require.NoError(b, err)
+
+		b.StartTimer()
+		appRepoInmem.DeleteUserURLs(urls[3 : len(urls)-5])
+		appRepoInmem.DeleteUserURLs([]*app.URL{{ID: "aaa", UserID: uint(len(urls)) * 2}})
+		b.StopTimer()
+
+		appRepoInmem.Close()
 	}
 }
