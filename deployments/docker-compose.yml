@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:15.7-alpine
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=go_yandex_shortener_db_password
+      - POSTGRES_USER=go_yandex_shortener_db_user
+      - POSTGRES_DB=go_yandex_shortener_db_name
+  go-yandex-shortener:
+    build:
+      context: ../.
+      dockerfile: build/Dockerfile
+    environment:
+      LOG_LEVEL: "info"
+      DATABASE_URI: "host=postgres user=go_yandex_shortener_db_user password=go_yandex_shortener_db_password dbname=go_yandex_shortener_db_name port=5432"
+    ports:
+      - 8080:8080
+    depends_on:
+      - postgres
