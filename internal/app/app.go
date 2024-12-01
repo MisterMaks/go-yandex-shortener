@@ -8,12 +8,12 @@ type URL struct {
 }
 
 type RequestBatchURL struct {
-	CorrelationID string `json:"correlation_id"`
+	CorrelationID string `json:"correlation_id"` // ID for connect OriginalURL with ShortURL in ResponseBatchURL
 	OriginalURL   string `json:"original_url"`
 }
 
 type ResponseBatchURL struct {
-	CorrelationID string `json:"correlation_id"`
+	CorrelationID string `json:"correlation_id"` // ID for connect OriginalURL with ShortURL in RequestBatchURL
 	ShortURL      string `json:"short_url"`
 }
 

@@ -92,6 +92,7 @@ func RequestLogger(h http.Handler) http.Handler {
 	})
 }
 
+// GetContextLogger gets logger from context.
 func GetContextLogger(ctx context.Context) *zap.Logger {
 	if ctx == nil {
 		return Log

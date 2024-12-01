@@ -2,13 +2,16 @@ package repo
 
 import (
 	"database/sql"
+
 	"github.com/MisterMaks/go-yandex-shortener/internal/user"
 )
 
+// UserRepoPostgres user data storage in PostgreSQL.
 type UserRepoPostgres struct {
 	db *sql.DB
 }
 
+// NewUserRepoPostgres creates *UserRepoPostgres.
 func NewUserRepoPostgres(db *sql.DB) (*UserRepoPostgres, error) {
 	return &UserRepoPostgres{db: db}, nil
 }

@@ -32,3 +32,15 @@ docker-run:
 dcb:
 	@echo "-- starting docker compose"
 	docker-compose -f ./deployments/docker-compose.yml up --build
+
+.PHONY: swagger
+swagger:
+	@echo "-- generating swagger"
+	swag init --output ./main/ -g ./internal/app/delivery/http.go
+	mv ./main/docs.go cmd/shortener/
+	mv ./main ./docs
+
+.PHONY: godoc
+godoc:
+	@echo "-- running godoc server"
+	godoc -http=:8000

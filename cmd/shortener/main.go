@@ -1,14 +1,19 @@
-package main
+package shortener
 
 import (
 	"context"
 	"database/sql"
-	"github.com/pressly/goose/v3"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
+
+	"github.com/pressly/goose/v3"
+	httpSwagger "github.com/swaggo/http-swagger"
 
 	appDeliveryInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/delivery"
 	appRepoInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/repo"
@@ -75,12 +80,17 @@ type Middlewares struct {
 
 func shortenerRouter(
 	appHandler AppHandlerInterface,
-	redirectPathPrefix string,
+	baseURL *url.URL,
 	middlewares *Middlewares,
 ) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middlewares.RequestLogger)
-	redirectPathPrefix = strings.TrimPrefix(redirectPathPrefix, "/")
+
+	SwaggerInfo.Host = baseURL.Host
+	SwaggerInfo.Schemes = []string{"http", "https"}
+	r.Get("/swagger/*", httpSwagger.Handler())
+
+	redirectPathPrefix := strings.TrimPrefix(baseURL.Path, "/")
 	r.Get(`/`+redirectPathPrefix+`{id}`, appHandler.RedirectToURL)
 	r.Get(`/ping`, appHandler.Ping)
 	r.Route(`/`, func(r chi.Router) {
@@ -218,7 +228,6 @@ func main() {
 			zap.Error(err),
 		)
 	}
-	redirectPathPrefix := u.Path
 
 	middlewares := &Middlewares{
 		RequestLogger:          logger.RequestLogger,
@@ -227,15 +236,25 @@ func main() {
 		Authenticate:           userUsecase.Authenticate,
 	}
 
-	r := shortenerRouter(appHandler, redirectPathPrefix, middlewares)
+	r := shortenerRouter(appHandler, u, middlewares)
 
 	logger.Log.Info("Server running",
 		zap.String(AddrKey, config.ServerAddress),
 	)
-	err = http.ListenAndServe(config.ServerAddress, r)
-	if err != nil {
-		logger.Log.Fatal("Failed to start server",
-			zap.Error(err),
-		)
+	go func() {
+		err = http.ListenAndServe(config.ServerAddress, r)
+		if err != nil {
+			logger.Log.Fatal("Failed to start server",
+				zap.Error(err),
+			)
+		}
+	}()
+
+	exitChan := make(chan os.Signal, 1)
+	signal.Notify(exitChan, syscall.SIGINT, syscall.SIGTERM)
+
+	for exitSyg := range exitChan {
+		logger.Log.Info("terminating: via signal", zap.Any("signal", exitSyg))
+		break
 	}
 }

@@ -13,12 +13,14 @@ const (
 	DefaultCountURLs = 256
 )
 
+// AppRepoInmem in-memory application data storage.
 type AppRepoInmem struct {
 	urls     []*app.URL
 	mu       sync.RWMutex
 	producer *producer
 }
 
+// NewAppRepoInmem creates *AppRepoInmem and loads saved data from file.
 func NewAppRepoInmem(filename string) (*AppRepoInmem, error) {
 	if filename == "" {
 		return &AppRepoInmem{
@@ -48,6 +50,7 @@ func NewAppRepoInmem(filename string) (*AppRepoInmem, error) {
 	}, nil
 }
 
+// GetOrCreateURL get saved URL or creates new URL and save it in file.
 func (ari *AppRepoInmem) GetOrCreateURL(id, rawURL string, userID uint) (*app.URL, error) {
 	ari.mu.Lock()
 	defer ari.mu.Unlock()
@@ -66,6 +69,7 @@ func (ari *AppRepoInmem) GetOrCreateURL(id, rawURL string, userID uint) (*app.UR
 	return url, nil
 }
 
+// GetURL get URL with ID.
 func (ari *AppRepoInmem) GetURL(id string) (*app.URL, error) {
 	ari.mu.RLock()
 	defer ari.mu.RUnlock()
@@ -77,6 +81,7 @@ func (ari *AppRepoInmem) GetURL(id string) (*app.URL, error) {
 	return nil, ErrURLNotFound
 }
 
+// CheckIDExistence check URL ID existence.
 func (ari *AppRepoInmem) CheckIDExistence(id string) (bool, error) {
 	ari.mu.RLock()
 	defer ari.mu.RUnlock()
@@ -88,6 +93,7 @@ func (ari *AppRepoInmem) CheckIDExistence(id string) (bool, error) {
 	return false, nil
 }
 
+// Close finishes working with the file.
 func (ari *AppRepoInmem) Close() error {
 	if ari.producer != nil {
 		return ari.producer.close()
@@ -96,6 +102,7 @@ func (ari *AppRepoInmem) Close() error {
 	return nil
 }
 
+// GetOrCreateURLs gets created URLs and saves new URLs and returns them.
 func (ari *AppRepoInmem) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error) {
 	ari.mu.Lock()
 	defer ari.mu.Unlock()
@@ -120,6 +127,7 @@ func (ari *AppRepoInmem) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error) {
 	return urls, nil
 }
 
+// GetUserURLs gets user URLs.
 func (ari *AppRepoInmem) GetUserURLs(userID uint) ([]*app.URL, error) {
 	ari.mu.RLock()
 	defer ari.mu.RUnlock()
@@ -134,6 +142,7 @@ func (ari *AppRepoInmem) GetUserURLs(userID uint) ([]*app.URL, error) {
 	return userURLs, nil
 }
 
+// DeleteUserURLs delete user URLs.
 func (ari *AppRepoInmem) DeleteUserURLs(urls []*app.URL) error {
 	ari.mu.Lock()
 	defer ari.mu.Unlock()

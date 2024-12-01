@@ -7,10 +7,12 @@ import (
 	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 )
 
+// AppRepoPostgres application data storage in PostgreSQL.
 type AppRepoPostgres struct {
 	db *sql.DB
 }
 
+// NewAppRepoPostgres creates *AppRepoPostgres.
 func NewAppRepoPostgres(db *sql.DB) (*AppRepoPostgres, error) {
 	return &AppRepoPostgres{db: db}, nil
 }

@@ -1,4 +1,4 @@
-package main
+package shortener
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/MisterMaks/go-yandex-shortener/internal/app/delivery/mocks"
@@ -22,7 +23,7 @@ import (
 )
 
 const (
-	TestValidURL   string = "valid_url"
+	TestValidURL   string = "http://valid_url.ru/"
 	TestInvalidURL string = "invalid_url"
 	TestID         string = "1"
 	ContentTypeKey string = "Content-Type"
@@ -89,7 +90,11 @@ func TestRouter(t *testing.T) {
 		},
 		Authenticate: func(h http.Handler) http.Handler { return h },
 	}
-	ts := httptest.NewServer(shortenerRouter(appHandler, "/", middlewares))
+
+	u, err := url.ParseRequestURI(ResultAddrPrefix)
+	require.NoError(t, err)
+
+	ts := httptest.NewServer(shortenerRouter(appHandler, u, middlewares))
 	defer ts.Close()
 	client := ts.Client()
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
@@ -171,7 +176,7 @@ func TestRouter(t *testing.T) {
 			},
 			want: want{
 				statusCode: http.StatusTemporaryRedirect,
-				response:   "<a href=\"/" + TestValidURL + "\">Temporary Redirect</a>.\n\n",
+				response:   "<a href=\"" + TestValidURL + "\">Temporary Redirect</a>.\n\n",
 			},
 		},
 		{
