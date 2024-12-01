@@ -15,13 +15,14 @@ const (
 
 // AppRepoInmem in-memory application data storage.
 type AppRepoInmem struct {
-	urls     []*app.URL
-	mu       sync.RWMutex
-	producer *producer
+	urls              []*app.URL
+	mu                sync.RWMutex
+	producer          *producer
+	deleteURLProducer *producer
 }
 
 // NewAppRepoInmem creates *AppRepoInmem and loads saved data from file.
-func NewAppRepoInmem(filename string) (*AppRepoInmem, error) {
+func NewAppRepoInmem(filename string, deletedURLsFilename string) (*AppRepoInmem, error) {
 	if filename == "" {
 		return &AppRepoInmem{
 			urls:     make([]*app.URL, 0, DefaultCountURLs),
@@ -34,19 +35,43 @@ func NewAppRepoInmem(filename string) (*AppRepoInmem, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer consumer.close()
 	urls, err := consumer.readURLs()
 	if err != nil {
 		return nil, err
 	}
+	consumer.close()
+
+	consumer, err = newConsumer(deletedURLsFilename)
+	if err != nil {
+		return nil, err
+	}
+	deletedURLs, err := consumer.readURLs()
+	consumer.close()
+
+	for _, deletedURL := range deletedURLs {
+		for _, url := range urls {
+			if url.ID == deletedURL.URL {
+				url.IsDeleted = true
+				continue
+			}
+		}
+	}
+
 	producer, err := newProducer(filename)
 	if err != nil {
 		return nil, err
 	}
+
+	deleteURLProducer, err := newProducer(deletedURLsFilename)
+	if err != nil {
+		return nil, err
+	}
+
 	return &AppRepoInmem{
-		urls:     urls,
-		mu:       sync.RWMutex{},
-		producer: producer,
+		urls:              urls,
+		mu:                sync.RWMutex{},
+		producer:          producer,
+		deleteURLProducer: deleteURLProducer,
 	}, nil
 }
 
@@ -97,6 +122,10 @@ func (ari *AppRepoInmem) CheckIDExistence(id string) (bool, error) {
 func (ari *AppRepoInmem) Close() error {
 	if ari.producer != nil {
 		return ari.producer.close()
+	}
+
+	if ari.deleteURLProducer != nil {
+		ari.deleteURLProducer.close()
 	}
 
 	return nil
@@ -151,6 +180,12 @@ func (ari *AppRepoInmem) DeleteUserURLs(urls []*app.URL) error {
 		for _, ariURL := range ari.urls {
 			if url.ID == ariURL.ID && url.UserID == ariURL.UserID {
 				ariURL.IsDeleted = true
+
+				if ari.deleteURLProducer != nil {
+					ari.deleteURLProducer.writeURL(url)
+				}
+
+				continue
 			}
 		}
 	}

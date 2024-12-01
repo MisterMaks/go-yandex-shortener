@@ -31,6 +31,7 @@ const (
 	Addr                          string = "localhost:8080"
 	ResultAddrPrefix              string = "http://localhost:8080/"
 	URLsFileStoragePath           string = "/tmp/short-url-db.json"
+	DeletedURLsFileStoragePath    string = "/tmp/deleted-url-db.json"
 	UsersFileStoragePath          string = "/tmp/user-db.json"
 	CountRegenerationsForLengthID uint   = 5
 	LengthID                      uint   = 5
@@ -149,7 +150,7 @@ func main() {
 	var userRepo userUsecaseInternal.UserRepoInterface
 	switch config.DatabaseDSN {
 	case "":
-		appRepoInmem, err := appRepoInternal.NewAppRepoInmem(config.FileStoragePath)
+		appRepoInmem, err := appRepoInternal.NewAppRepoInmem(config.FileStoragePath, DeletedURLsFileStoragePath)
 		if err != nil {
 			logger.Log.Fatal("Failed to create appRepoInmem",
 				zap.Error(err),
