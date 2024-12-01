@@ -20,7 +20,7 @@ func TestNewAppRepoInmem(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
 
-	appRepoInMem, err := NewAppRepoInmem(tmpFile.Name())
+	appRepoInMem, err := NewAppRepoInmem(tmpFile.Name(), tmpFile.Name())
 	assert.NoError(t, err)
 	assert.NotNil(t, appRepoInMem)
 }
@@ -283,7 +283,7 @@ func BenchmarkAppRepoInmem_GetOrCreateURL(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 
-		appRepoInmem, err := NewAppRepoInmem("")
+		appRepoInmem, err := NewAppRepoInmem("", "")
 		require.NoError(b, err)
 
 		for _, url := range urls {
@@ -309,7 +309,7 @@ func BenchmarkAppRepoInmem_GetOrCreateURLs(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 
-		appRepoInmem, err := NewAppRepoInmem("")
+		appRepoInmem, err := NewAppRepoInmem("", "")
 		require.NoError(b, err)
 
 		b.StartTimer()
@@ -328,7 +328,7 @@ func BenchmarkAppRepoInmem_CheckIDExistence(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 
-		appRepoInmem, err := NewAppRepoInmem("")
+		appRepoInmem, err := NewAppRepoInmem("", "")
 		require.NoError(b, err)
 
 		_, err = appRepoInmem.GetOrCreateURLs(urls)
@@ -350,7 +350,7 @@ func BenchmarkAppRepoInmem_GetUserURLs(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 
-		appRepoInmem, err := NewAppRepoInmem("")
+		appRepoInmem, err := NewAppRepoInmem("", "")
 		require.NoError(b, err)
 
 		_, err = appRepoInmem.GetOrCreateURLs(urls)
@@ -372,7 +372,7 @@ func BenchmarkAppRepoInmem_DeleteUserURLs(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 
-		appRepoInmem, err := NewAppRepoInmem("")
+		appRepoInmem, err := NewAppRepoInmem("", "")
 		require.NoError(b, err)
 
 		_, err = appRepoInmem.GetOrCreateURLs(urls)
