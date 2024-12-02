@@ -29,7 +29,7 @@ jobs:
 
       - name: Run tests
         run: |
-          go test -coverprofile=./unit.coverage.txt ./...
+          go test -coverprofile=unit.coverage.txt ./...
         env:
           TEST_DATABASE_URI: "postgresql://postgres:postgres@postgres/praktikum?sslmode=disable"
 
@@ -38,3 +38,4 @@ jobs:
         with:
           project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
           coverage-reports: unit.coverage.txt
+          force-coverage-parser: go
