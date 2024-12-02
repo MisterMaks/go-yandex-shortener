@@ -46,6 +46,9 @@ func NewAppRepoInmem(filename string, deletedURLsFilename string) (*AppRepoInmem
 		return nil, err
 	}
 	deletedURLs, err := consumer.readURLs()
+	if err != nil {
+		return nil, err
+	}
 	consumer.close()
 
 	for _, deletedURL := range deletedURLs {
