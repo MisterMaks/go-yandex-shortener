@@ -3,13 +3,19 @@ package main
 import (
 	"context"
 	"database/sql"
-	"github.com/pressly/goose/v3"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
+	"github.com/pressly/goose/v3"
+	httpSwagger "github.com/swaggo/http-swagger"
+
+	"github.com/MisterMaks/go-yandex-shortener/api"
 	appDeliveryInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/delivery"
 	appRepoInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/repo"
 	appUsecaseInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/usecase"
@@ -22,10 +28,12 @@ import (
 	"go.uber.org/zap"
 )
 
+// App constants.
 const (
 	Addr                          string = "localhost:8080"
 	ResultAddrPrefix              string = "http://localhost:8080/"
 	URLsFileStoragePath           string = "/tmp/short-url-db.json"
+	DeletedURLsFileStoragePath    string = "/tmp/deleted-url-db.json"
 	UsersFileStoragePath          string = "/tmp/user-db.json"
 	CountRegenerationsForLengthID uint   = 5
 	LengthID                      uint   = 5
@@ -56,6 +64,7 @@ func migrate(dsn string) error {
 	return goose.RunContext(ctx, "up", db, "./migrations/")
 }
 
+// AppHandlerInterface contains the necessary functions for the handlers of app.
 type AppHandlerInterface interface {
 	GetOrCreateURL(w http.ResponseWriter, r *http.Request)
 	APIGetOrCreateURL(w http.ResponseWriter, r *http.Request)
@@ -66,6 +75,7 @@ type AppHandlerInterface interface {
 	APIDeleteUserURLs(w http.ResponseWriter, r *http.Request)
 }
 
+// Middlewares used middlewares.
 type Middlewares struct {
 	RequestLogger          func(http.Handler) http.Handler
 	GzipMiddleware         func(http.Handler) http.Handler
@@ -75,12 +85,17 @@ type Middlewares struct {
 
 func shortenerRouter(
 	appHandler AppHandlerInterface,
-	redirectPathPrefix string,
+	baseURL *url.URL,
 	middlewares *Middlewares,
 ) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middlewares.RequestLogger)
-	redirectPathPrefix = strings.TrimPrefix(redirectPathPrefix, "/")
+
+	api.SwaggerInfo.Host = baseURL.Host
+	api.SwaggerInfo.Schemes = []string{"http", "https"}
+	r.Get("/swagger/*", httpSwagger.Handler())
+
+	redirectPathPrefix := strings.TrimPrefix(baseURL.Path, "/")
 	r.Get(`/`+redirectPathPrefix+`{id}`, appHandler.RedirectToURL)
 	r.Get(`/ping`, appHandler.Ping)
 	r.Route(`/`, func(r chi.Router) {
@@ -139,7 +154,7 @@ func main() {
 	var userRepo userUsecaseInternal.UserRepoInterface
 	switch config.DatabaseDSN {
 	case "":
-		appRepoInmem, err := appRepoInternal.NewAppRepoInmem(config.FileStoragePath)
+		appRepoInmem, err := appRepoInternal.NewAppRepoInmem(config.FileStoragePath, DeletedURLsFileStoragePath)
 		if err != nil {
 			logger.Log.Fatal("Failed to create appRepoInmem",
 				zap.Error(err),
@@ -218,7 +233,6 @@ func main() {
 			zap.Error(err),
 		)
 	}
-	redirectPathPrefix := u.Path
 
 	middlewares := &Middlewares{
 		RequestLogger:          logger.RequestLogger,
@@ -227,15 +241,25 @@ func main() {
 		Authenticate:           userUsecase.Authenticate,
 	}
 
-	r := shortenerRouter(appHandler, redirectPathPrefix, middlewares)
+	r := shortenerRouter(appHandler, u, middlewares)
 
 	logger.Log.Info("Server running",
 		zap.String(AddrKey, config.ServerAddress),
 	)
-	err = http.ListenAndServe(config.ServerAddress, r)
-	if err != nil {
-		logger.Log.Fatal("Failed to start server",
-			zap.Error(err),
-		)
+	go func() {
+		err = http.ListenAndServe(config.ServerAddress, r)
+		if err != nil {
+			logger.Log.Fatal("Failed to start server",
+				zap.Error(err),
+			)
+		}
+	}()
+
+	exitChan := make(chan os.Signal, 1)
+	signal.Notify(exitChan, syscall.SIGINT, syscall.SIGTERM)
+
+	for exitSyg := range exitChan {
+		logger.Log.Info("terminating: via signal", zap.Any("signal", exitSyg))
+		break
 	}
 }

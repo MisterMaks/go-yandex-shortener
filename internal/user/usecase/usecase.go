@@ -3,30 +3,36 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/MisterMaks/go-yandex-shortener/internal/logger"
 	"github.com/MisterMaks/go-yandex-shortener/internal/user"
 	"github.com/golang-jwt/jwt/v4"
 	"go.uber.org/zap"
-	"net/http"
-	"time"
 )
 
+// UserIDKeyType is type for UserIDKey constant.
 type UserIDKeyType string
 
+// Constants for usecase.
 const (
 	UserIDKey      UserIDKeyType = "user_id"
 	AccessTokenKey string        = "accessToken"
 )
 
+// Claims is jwt.RegisteredClaims with UserID field.
 type Claims struct {
 	jwt.RegisteredClaims
 	UserID uint
 }
 
+// UserRepoInterface contains the necessary functions for storage.
 type UserRepoInterface interface {
 	CreateUser() (*user.User, error)
 }
 
+// UserUsecase business logic struct.
 type UserUsecase struct {
 	UserRepo UserRepoInterface
 
@@ -34,6 +40,7 @@ type UserUsecase struct {
 	TokenExp  time.Duration
 }
 
+// NewUserUsecase creates *UserUsecase.
 func NewUserUsecase(userRepo UserRepoInterface, sk string, te time.Duration) (*UserUsecase, error) {
 	return &UserUsecase{
 		UserRepo: userRepo,
@@ -43,7 +50,7 @@ func NewUserUsecase(userRepo UserRepoInterface, sk string, te time.Duration) (*U
 	}, nil
 }
 
-// BuildJWTString создаёт токен и возвращает его в виде строки.
+// buildJWTString creates token and return it in string format.
 func (uu *UserUsecase) buildJWTString(userID uint) (string, error) {
 	// создаём новый токен с алгоритмом подписи HS256 и утверждениями — Claims
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
@@ -80,10 +87,12 @@ func (uu *UserUsecase) getUserID(tokenString string) (uint, error) {
 	return claims.UserID, nil
 }
 
+// CreateUser create user.
 func (uu *UserUsecase) CreateUser() (*user.User, error) {
 	return uu.UserRepo.CreateUser()
 }
 
+// AuthenticateOrRegister auths or registers user using JWT token in Cookie.
 func (uu *UserUsecase) AuthenticateOrRegister(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctxLogger := logger.GetContextLogger(r.Context())
@@ -148,6 +157,7 @@ func (uu *UserUsecase) AuthenticateOrRegister(h http.Handler) http.Handler {
 	})
 }
 
+// Authenticate auths user using JWT token in Cookie.
 func (uu *UserUsecase) Authenticate(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("accessToken")
@@ -173,6 +183,7 @@ func (uu *UserUsecase) Authenticate(h http.Handler) http.Handler {
 	})
 }
 
+// GetContextUserID gets user ID from context.
 func GetContextUserID(ctx context.Context) (uint, error) {
 	if ctx == nil {
 		return 0, fmt.Errorf("no context")

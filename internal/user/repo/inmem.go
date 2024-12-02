@@ -1,10 +1,12 @@
 package repo
 
 import (
-	"github.com/MisterMaks/go-yandex-shortener/internal/user"
 	"sync"
+
+	"github.com/MisterMaks/go-yandex-shortener/internal/user"
 )
 
+// UserRepoInmem in-memory data storage for users.
 type UserRepoInmem struct {
 	users    []*user.User
 	mu       sync.RWMutex
@@ -12,6 +14,7 @@ type UserRepoInmem struct {
 	maxID    uint
 }
 
+// NewUserRepoInmem creates *NewUserRepoInmem and loads saved data from file.
 func NewUserRepoInmem(filename string) (*UserRepoInmem, error) {
 	if filename == "" {
 		return &UserRepoInmem{
@@ -51,10 +54,16 @@ func NewUserRepoInmem(filename string) (*UserRepoInmem, error) {
 	}, nil
 }
 
+// Close finishes working with the file.
 func (uri *UserRepoInmem) Close() error {
-	return uri.producer.close()
+	if uri.producer != nil {
+		return uri.producer.close()
+	}
+
+	return nil
 }
 
+// CreateUser creates new user.
 func (uri *UserRepoInmem) CreateUser() (*user.User, error) {
 	uri.mu.Lock()
 	defer uri.mu.Unlock()
