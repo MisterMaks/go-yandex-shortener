@@ -2,6 +2,7 @@ definitions:
   app.RequestBatchURL:
     properties:
       correlation_id:
+        description: ID for connect OriginalURL with ShortURL in ResponseBatchURL
         type: string
       original_url:
         type: string
@@ -9,6 +10,7 @@ definitions:
   app.ResponseBatchURL:
     properties:
       correlation_id:
+        description: ID for connect OriginalURL with ShortURL in RequestBatchURL
         type: string
       short_url:
         type: string
