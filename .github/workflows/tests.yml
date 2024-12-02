@@ -34,7 +34,7 @@ jobs:
           TEST_DATABASE_URI: "postgresql://postgres:postgres@postgres/praktikum?sslmode=disable"
 
       - name: codacy-coverage-reporter
-        uses: codacy/codacy-coverage-reporter-action@v1.3.0
+        uses: codacy/codacy-coverage-reporter-action@a38818475bb21847788496e9f0fddaa4e84955ba
         with:
           project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
           coverage-reports: unit.coverage.out
