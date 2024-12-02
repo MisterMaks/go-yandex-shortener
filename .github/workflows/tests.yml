@@ -33,6 +33,7 @@ jobs:
         env:
           TEST_DATABASE_URI: "postgresql://postgres:postgres@postgres/praktikum?sslmode=disable"
 
+      - uses: actions/checkout@v2
       - name: codacy-coverage-reporter
         uses: codacy/codacy-coverage-reporter-action@v1.3.0
         with:
