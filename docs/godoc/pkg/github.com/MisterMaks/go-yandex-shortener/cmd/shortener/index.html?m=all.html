@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#375EAB">
+
+  <title>shortener - Go Documentation Server</title>
+
+<link type="text/css" rel="stylesheet" href="../../../../../../lib/godoc/style.css">
+
+<script>window.initFuncs = [];</script>
+<script src="../../../../../../lib/godoc/jquery.js" defer></script>
+
+
+
+<script>var goVersion = "go1.22.3";</script>
+<script src="../../../../../../lib/godoc/godocs.js" defer></script>
+</head>
+<body>
+
+<div id='lowframe' style="position: fixed; bottom: 0; left: 0; height: 0; width: 100%; border-top: thin solid grey; background-color: white; overflow: auto;">
+...
+</div><!-- #lowframe -->
+
+<div id="topbar" class="wide"><div class="container">
+<div class="top-heading" id="heading-wide"><a href="http://localhost:8000/pkg/">Go Documentation Server</a></div>
+<div class="top-heading" id="heading-narrow"><a href="http://localhost:8000/pkg/">GoDoc</a></div>
+<a href="index.html?m=all.html#" id="menu-button"><span id="menu-button-arrow">&#9661;</span></a>
+<form method="GET" action="http://localhost:8000/search">
+<div id="menu">
+
+<span class="search-box"><input type="search" id="search" name="q" placeholder="Search" aria-label="Search" required><button type="submit"><span><!-- magnifying glass: --><svg width="24" height="24" viewBox="0 0 24 24"><title>submit search</title><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/><path d="M0 0h24v24H0z" fill="none"/></svg></span></button></span>
+</div>
+</form>
+
+</div></div>
+
+
+
+<div id="page" class="wide">
+<div class="container">
+
+
+  <h1>
+    Package shortener
+    <span class="text-muted"></span>
+  </h1>
+
+
+
+
+
+
+
+<div id="nav"></div>
+
+
+<!--
+	Copyright 2009 The Go Authors. All rights reserved.
+	Use of this source code is governed by a BSD-style
+	license that can be found in the LICENSE file.
+-->
+<!--
+	Note: Static (i.e., not template-generated) href and id
+	attributes start with "pkg-" to make it impossible for
+	them to conflict with generated attributes (some of which
+	correspond to Go identifiers).
+-->
+
+	<script>
+	document.ANALYSIS_DATA = null;
+	document.CALLGRAPH = null;
+	</script>
+
+	
+		
+		<div id="short-nav">
+			<dl>
+			<dd><code>import "github.com/MisterMaks/go-yandex-shortener/cmd/shortener"</code></dd>
+			</dl>
+			<dl>
+			<dd><a href="index.html?m=all.html#pkg-overview" class="overviewLink">Overview</a></dd>
+			<dd><a href="index.html?m=all.html#pkg-index" class="indexLink">Index</a></dd>
+			
+				<dd><a href="index.html?m=all.html#pkg-examples" class="examplesLink">Examples</a></dd>
+			
+			
+				<dd><a href="index.html?m=all.html#pkg-subdirectories">Subdirectories</a></dd>
+			
+			</dl>
+		</div>
+		<!-- The package's Name is printed as title by the top-level template -->
+		<div id="pkg-overview" class="toggleVisible">
+			<div class="collapsed">
+				<h2 class="toggleButton" title="Click to show Overview section">Overview ▹</h2>
+			</div>
+			<div class="expanded">
+				<h2 class="toggleButton" title="Click to hide Overview section">Overview ▾</h2>
+				
+				<div id="example_" class="toggle">
+	<div class="collapsed">
+		<p class="exampleHeading toggleButton">▹ <span class="text">Example</span></p>
+	</div>
+	<div class="expanded">
+		<p class="exampleHeading toggleButton">▾ <span class="text">Example</span></p>
+		
+		
+		
+			<p>Code:</p>
+			<pre class="code">package shortener
+
+import (
+    &#34;bytes&#34;
+    &#34;context&#34;
+    &#34;fmt&#34;
+    &#34;io&#34;
+    &#34;net/http&#34;
+    &#34;net/http/httptest&#34;
+    &#34;net/url&#34;
+    &#34;strings&#34;
+
+    &#34;github.com/MisterMaks/go-yandex-shortener/internal/app&#34;
+    appDeliveryInternal &#34;github.com/MisterMaks/go-yandex-shortener/internal/app/delivery&#34;
+    &#34;github.com/MisterMaks/go-yandex-shortener/internal/app/delivery/mocks&#34;
+    &#34;github.com/MisterMaks/go-yandex-shortener/internal/gzip&#34;
+    &#34;github.com/MisterMaks/go-yandex-shortener/internal/logger&#34;
+    &#34;github.com/MisterMaks/go-yandex-shortener/internal/user/usecase&#34;
+    &#34;github.com/golang/mock/gomock&#34;
+)
+
+func newExampleServer(m *mocks.MockAppUsecaseInterface) *httptest.Server {
+    appHandler := appDeliveryInternal.NewAppHandler(m)
+
+    middlewares := &amp;Middlewares{
+        RequestLogger:  logger.RequestLogger,
+        GzipMiddleware: gzip.GzipMiddleware,
+        AuthenticateOrRegister: func(h http.Handler) http.Handler {
+            return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                ctx := context.WithValue(r.Context(), usecase.UserIDKey, TestUserID)
+                h.ServeHTTP(w, r.WithContext(ctx))
+            })
+        },
+        Authenticate: func(h http.Handler) http.Handler {
+            return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                ctx := context.WithValue(r.Context(), usecase.UserIDKey, TestUserID)
+                h.ServeHTTP(w, r.WithContext(ctx))
+            })
+        },
+    }
+
+    u, _ := url.ParseRequestURI(ResultAddrPrefix)
+
+    ts := httptest.NewServer(shortenerRouter(appHandler, u, middlewares))
+
+    client := ts.Client()
+    client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+        return http.ErrUseLastResponse
+    }
+
+    return ts
+}
+
+func newExampleMock() *mocks.MockAppUsecaseInterface {
+    ctrl := gomock.NewController(nil)
+
+    m := mocks.NewMockAppUsecaseInterface(ctrl)
+
+    m.EXPECT().GetOrCreateURL(TestValidURL, TestUserID).Return(&amp;app.URL{
+        ID:        TestID,
+        URL:       TestValidURL,
+        UserID:    TestUserID,
+        IsDeleted: false,
+    }, false, nil).AnyTimes()
+    m.EXPECT().GenerateShortURL(TestID).Return(&#34;http://localhost:8080/&#34; + TestID).AnyTimes()
+    m.EXPECT().GetURL(TestID).Return(&amp;app.URL{
+        ID:        TestID,
+        URL:       TestValidURL,
+        UserID:    TestUserID,
+        IsDeleted: false,
+    }, nil)
+    m.EXPECT().GetOrCreateURLs([]app.RequestBatchURL{
+        {CorrelationID: TestID, OriginalURL: TestValidURL},
+    }, TestUserID).Return([]app.ResponseBatchURL{
+        {CorrelationID: TestID, ShortURL: &#34;http://localhost:8080/&#34; + TestID},
+    }, nil).AnyTimes()
+    m.EXPECT().GetUserURLs(TestUserID).Return([]app.ResponseUserURL{
+        {ShortURL: &#34;http://localhost:8080/&#34; + TestID, OriginalURL: TestValidURL},
+    }, nil).AnyTimes()
+    m.EXPECT().SendDeleteUserURLsInChan(TestUserID, []string{TestID}).AnyTimes()
+    m.EXPECT().Ping().Return(nil).AnyTimes()
+
+    return m
+}
+
+func Example() {
+    <span class="comment">// preparing mocks and server</span>
+    m := newExampleMock()
+    ts := newExampleServer(m)
+    defer ts.Close()
+    serverAddr := ts.URL
+
+    fmt.Println(&#34;Get or create URL:&#34;)
+    getOrCreateURLURL := serverAddr + &#34;/&#34;
+    req, _ := http.NewRequest(http.MethodPost, getOrCreateURLURL, bytes.NewReader([]byte(TestValidURL)))
+    req.Header.Set(ContentTypeKey, TextPlainKey)
+    resp, _ := ts.Client().Do(req)
+    respBody, _ := io.ReadAll(resp.Body)
+    resp.Body.Close()
+    respBodyStr := string(respBody)
+    fmt.Println(resp.StatusCode)
+    fmt.Println(respBodyStr)
+
+    fmt.Println(&#34;Redirect to original URL:&#34;)
+    redirectURL := serverAddr + &#34;/&#34; + TestID
+    req, _ = http.NewRequest(http.MethodGet, redirectURL, bytes.NewReader(nil))
+    resp, _ = ts.Client().Do(req)
+    respBody, _ = io.ReadAll(resp.Body)
+    resp.Body.Close()
+    respBodyStr, _ = strings.CutSuffix(string(respBody), &#34;\n\n&#34;)
+    fmt.Println(resp.StatusCode)
+    fmt.Println(respBodyStr)
+
+    fmt.Println(&#34;Get or create URL in JSON format:&#34;)
+    apiGetOrCreateURLURL := serverAddr + &#34;/api/shorten&#34;
+    bodyJSON := []byte(`{&#34;url&#34;: &#34;` + TestValidURL + `&#34;}`)
+    req, _ = http.NewRequest(http.MethodPost, apiGetOrCreateURLURL, bytes.NewReader(bodyJSON))
+    req.Header.Set(ContentTypeKey, appDeliveryInternal.ApplicationJSONKey)
+    resp, err := ts.Client().Do(req)
+    _ = err
+    respBody, _ = io.ReadAll(resp.Body)
+    resp.Body.Close()
+    respBodyStr = string(respBody)
+    fmt.Println(resp.StatusCode)
+    fmt.Println(respBodyStr)
+
+    fmt.Println(&#34;Get or create URLs in JSON format:&#34;)
+    apiGetOrCreateURLsURL := serverAddr + &#34;/api/shorten/batch&#34;
+    bodyJSON = []byte(`[{&#34;correlation_id&#34;: &#34;` + TestID + `&#34;, &#34;original_url&#34;: &#34;` + TestValidURL + `&#34;}]`)
+    req, _ = http.NewRequest(http.MethodPost, apiGetOrCreateURLsURL, bytes.NewReader(bodyJSON))
+    req.Header.Set(ContentTypeKey, appDeliveryInternal.ApplicationJSONKey)
+    resp, _ = ts.Client().Do(req)
+    respBody, _ = io.ReadAll(resp.Body)
+    resp.Body.Close()
+    respBodyStr = string(respBody)
+    fmt.Println(resp.StatusCode)
+    fmt.Println(respBodyStr)
+
+    fmt.Println(&#34;Get user URLs in JSON format:&#34;)
+    apiGetUserURLsURL := serverAddr + &#34;/api/user/urls&#34;
+    req, _ = http.NewRequest(http.MethodGet, apiGetUserURLsURL, bytes.NewReader(nil))
+    resp, _ = ts.Client().Do(req)
+    respBody, _ = io.ReadAll(resp.Body)
+    resp.Body.Close()
+    respBodyStr = string(respBody)
+    fmt.Println(resp.StatusCode)
+    fmt.Println(respBodyStr)
+
+    fmt.Println(&#34;Delete user URLs:&#34;)
+    apiDeleteUserURLsURL := serverAddr + &#34;/api/user/urls&#34;
+    bodyJSON = []byte(`[&#34;` + TestID + `&#34;]`)
+    req, _ = http.NewRequest(http.MethodDelete, apiDeleteUserURLsURL, bytes.NewReader(bodyJSON))
+    resp, _ = ts.Client().Do(req)
+    resp.Body.Close()
+    fmt.Println(resp.StatusCode)
+
+    fmt.Println(&#34;Ping DB:&#34;)
+    pingURL := serverAddr + &#34;/ping&#34;
+    req, _ = http.NewRequest(http.MethodGet, pingURL, bytes.NewReader(nil))
+    resp, _ = ts.Client().Do(req)
+    resp.Body.Close()
+    fmt.Println(resp.StatusCode)
+
+    <span class="comment">// Output:</span>
+    <span class="comment">// Get or create URL:</span>
+    <span class="comment">// 201</span>
+    <span class="comment">// http://localhost:8080/1</span>
+    <span class="comment">// Redirect to original URL:</span>
+    <span class="comment">// 307</span>
+    <span class="comment">// &lt;a href=&#34;http://valid_url.ru/&#34;&gt;Temporary Redirect&lt;/a&gt;.</span>
+    <span class="comment">// Get or create URL in JSON format:</span>
+    <span class="comment">// 201</span>
+    <span class="comment">// {&#34;result&#34;:&#34;http://localhost:8080/1&#34;}</span>
+    <span class="comment">//</span>
+    <span class="comment">// Get or create URLs in JSON format:</span>
+    <span class="comment">// 201</span>
+    <span class="comment">// [{&#34;correlation_id&#34;:&#34;1&#34;,&#34;short_url&#34;:&#34;http://localhost:8080/1&#34;}]</span>
+    <span class="comment">//</span>
+    <span class="comment">// Get user URLs in JSON format:</span>
+    <span class="comment">// 200</span>
+    <span class="comment">// [{&#34;short_url&#34;:&#34;http://localhost:8080/1&#34;,&#34;original_url&#34;:&#34;http://valid_url.ru/&#34;}]</span>
+    <span class="comment">//</span>
+    <span class="comment">// Delete user URLs:</span>
+    <span class="comment">// 202</span>
+    <span class="comment">// Ping DB:</span>
+    <span class="comment">// 200</span>
+}
+</pre>
+			
+		
+	</div>
+</div>
+
+			</div>
+		</div>
+
+		<div id="pkg-index" class="toggleVisible">
+		<div class="collapsed">
+			<h2 class="toggleButton" title="Click to show Index section">Index ▹</h2>
+		</div>
+		<div class="expanded">
+			<h2 class="toggleButton" title="Click to hide Index section">Index ▾</h2>
+
+		<!-- Table of contents for API; must be named manual-nav to turn off auto nav. -->
+			<div id="manual-nav">
+			<dl>
+			
+				<dd><a href="index.html?m=all.html#pkg-constants">Constants</a></dd>
+			
+			
+			
+				
+				<dd><a href="index.html?m=all.html#connectPostgres">func connectPostgres(dsn string) (*sql.DB, error)</a></dd>
+			
+				
+				<dd><a href="index.html?m=all.html#main">func main()</a></dd>
+			
+				
+				<dd><a href="index.html?m=all.html#migrate">func migrate(dsn string) error</a></dd>
+			
+				
+				<dd><a href="index.html?m=all.html#shortenerRouter">func shortenerRouter(appHandler AppHandlerInterface, baseURL *url.URL, middlewares *Middlewares) chi.Router</a></dd>
+			
+			
+				
+				<dd><a href="index.html?m=all.html#AppHandlerInterface">type AppHandlerInterface</a></dd>
+				
+				
+			
+				
+				<dd><a href="index.html?m=all.html#Config">type Config</a></dd>
+				
+				
+					
+					<dd>&nbsp; &nbsp; <a href="index.html?m=all.html#Config.parseFlags">func (c *Config) parseFlags() error</a></dd>
+				
+			
+				
+				<dd><a href="index.html?m=all.html#Middlewares">type Middlewares</a></dd>
+				
+				
+			
+			
+			</dl>
+			</div><!-- #manual-nav -->
+
+		
+		<div id="pkg-examples">
+			<h3>Examples</h3>
+			<div class="js-expandAll expandAll collapsed">(Expand All)</div>
+			<dl>
+			
+			<dd><a class="exampleLink" href="index.html?m=all.html#example_">Package</a></dd>
+			
+			</dl>
+		</div>
+		
+
+		
+			<h3>Package files</h3>
+			<p>
+			<span style="font-size:90%">
+			
+				<a href="http://localhost:8000/src/github.com/MisterMaks/go-yandex-shortener/cmd/shortener/config.go">config.go</a>
+			
+				<a href="http://localhost:8000/src/github.com/MisterMaks/go-yandex-shortener/cmd/shortener/main.go">main.go</a>
+			
+			</span>
+			</p>
+		
+		</div><!-- .expanded -->
+		</div><!-- #pkg-index -->
+
+		
+
+		
+			<h2 id="pkg-constants">Constants</h2>
+			
+				
+				<pre>const (
+    <span id="Addr">Addr</span>                          <a href="http://localhost:8000/pkg/builtin/#string">string</a> = &#34;localhost:8080&#34;
+    <span id="ResultAddrPrefix">ResultAddrPrefix</span>              <a href="http://localhost:8000/pkg/builtin/#string">string</a> = &#34;http://localhost:8080/&#34;
+    <span id="URLsFileStoragePath">URLsFileStoragePath</span>           <a href="http://localhost:8000/pkg/builtin/#string">string</a> = &#34;/tmp/short-url-db.json&#34;
+    <span id="DeletedURLsFileStoragePath">DeletedURLsFileStoragePath</span>    <a href="http://localhost:8000/pkg/builtin/#string">string</a> = &#34;/tmp/deleted-url-db.json&#34;
+    <span id="UsersFileStoragePath">UsersFileStoragePath</span>          <a href="http://localhost:8000/pkg/builtin/#string">string</a> = &#34;/tmp/user-db.json&#34;
+    <span id="CountRegenerationsForLengthID">CountRegenerationsForLengthID</span> <a href="http://localhost:8000/pkg/builtin/#uint">uint</a>   = 5
+    <span id="LengthID">LengthID</span>                      <a href="http://localhost:8000/pkg/builtin/#uint">uint</a>   = 5
+    <span id="MaxLengthID">MaxLengthID</span>                   <a href="http://localhost:8000/pkg/builtin/#uint">uint</a>   = 20
+    <span id="LogLevel">LogLevel</span>                      <a href="http://localhost:8000/pkg/builtin/#string">string</a> = &#34;INFO&#34;
+    <span id="SecretKey">SecretKey</span>                     <a href="http://localhost:8000/pkg/builtin/#string">string</a> = &#34;supersecretkey&#34;
+    <span id="TokenExp">TokenExp</span>                             = <a href="http://localhost:8000/pkg/time/">time</a>.<a href="http://localhost:8000/pkg/time/#Hour">Hour</a> * 3
+    <span id="DeleteURLsWaitingTime">DeleteURLsWaitingTime</span>                = 5 * <a href="http://localhost:8000/pkg/time/">time</a>.<a href="http://localhost:8000/pkg/time/#Second">Second</a>
+    <span id="DeleteURLsChanSize">DeleteURLsChanSize</span>            <a href="http://localhost:8000/pkg/builtin/#uint">uint</a>   = 1024
+
+    <span id="ConfigKey">ConfigKey</span> <a href="http://localhost:8000/pkg/builtin/#string">string</a> = &#34;config&#34;
+    <span id="AddrKey">AddrKey</span>   <a href="http://localhost:8000/pkg/builtin/#string">string</a> = &#34;addr&#34;
+)</pre>
+			
+		
+		
+		
+			
+			
+			<h2 id="connectPostgres">func <a href="http://localhost:8000/src/github.com/MisterMaks/go-yandex-shortener/cmd/shortener/main.go?s=3611:3660#L102">connectPostgres</a>
+				<a class="permalink" href="index.html?m=all.html#connectPostgres">&#xb6;</a>
+				
+				
+			</h2>
+			<pre>func connectPostgres(dsn <a href="http://localhost:8000/pkg/builtin/#string">string</a>) (*<a href="http://localhost:8000/pkg/database/sql/">sql</a>.<a href="http://localhost:8000/pkg/database/sql/#DB">DB</a>, <a href="http://localhost:8000/pkg/builtin/#error">error</a>)</pre>
+			
+			
+			
+
+		
+			
+			
+			<h2 id="main">func <a href="http://localhost:8000/src/github.com/MisterMaks/go-yandex-shortener/cmd/shortener/main.go?s=3862:3873#L116">main</a>
+				<a class="permalink" href="index.html?m=all.html#main">&#xb6;</a>
+				
+				
+			</h2>
+			<pre>func main()</pre>
+			
+			
+			
+
+		
+			
+			
+			<h2 id="migrate">func <a href="http://localhost:8000/src/github.com/MisterMaks/go-yandex-shortener/cmd/shortener/main.go?s=1663:1693#L40">migrate</a>
+				<a class="permalink" href="index.html?m=all.html#migrate">&#xb6;</a>
+				
+				
+			</h2>
+			<pre>func migrate(dsn <a href="http://localhost:8000/pkg/builtin/#string">string</a>) <a href="http://localhost:8000/pkg/builtin/#error">error</a></pre>
+			
+			
+			
+
+		
+			
+			
+			<h2 id="shortenerRouter">func <a href="http://localhost:8000/src/github.com/MisterMaks/go-yandex-shortener/cmd/shortener/main.go?s=2683:2796#L73">shortenerRouter</a>
+				<a class="permalink" href="index.html?m=all.html#shortenerRouter">&#xb6;</a>
+				
+				
+			</h2>
+			<pre>func shortenerRouter(
+    appHandler <a href="index.html?m=all.html#AppHandlerInterface">AppHandlerInterface</a>,
+    baseURL *<a href="http://localhost:8000/pkg/net/url/">url</a>.<a href="http://localhost:8000/pkg/net/url/#URL">URL</a>,
+    middlewares *<a href="index.html?m=all.html#Middlewares">Middlewares</a>,
+) chi.<a href="index.html?m=all.html#Router">Router</a></pre>
+			
+			
+			
+
+		
+		
+			
+			
+			<h2 id="AppHandlerInterface">type <a href="http://localhost:8000/src/github.com/MisterMaks/go-yandex-shortener/cmd/shortener/main.go?s=1999:2428#L56">AppHandlerInterface</a>
+				<a class="permalink" href="index.html?m=all.html#AppHandlerInterface">&#xb6;</a>
+				
+				
+			</h2>
+			
+			<pre>type AppHandlerInterface interface {
+    GetOrCreateURL(w <a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#ResponseWriter">ResponseWriter</a>, r *<a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#Request">Request</a>)
+    APIGetOrCreateURL(w <a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#ResponseWriter">ResponseWriter</a>, r *<a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#Request">Request</a>)
+    RedirectToURL(w <a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#ResponseWriter">ResponseWriter</a>, r *<a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#Request">Request</a>)
+    Ping(w <a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#ResponseWriter">ResponseWriter</a>, r *<a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#Request">Request</a>)
+    APIGetOrCreateURLs(w <a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#ResponseWriter">ResponseWriter</a>, r *<a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#Request">Request</a>)
+    APIGetUserURLs(w <a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#ResponseWriter">ResponseWriter</a>, r *<a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#Request">Request</a>)
+    APIDeleteUserURLs(w <a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#ResponseWriter">ResponseWriter</a>, r *<a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#Request">Request</a>)
+}</pre>
+
+			
+
+			
+
+			
+			
+			
+
+			
+
+			
+		
+			
+			
+			<h2 id="Config">type <a href="http://localhost:8000/src/github.com/MisterMaks/go-yandex-shortener/cmd/shortener/config.go?s=99:945#L2">Config</a>
+				<a class="permalink" href="index.html?m=all.html#Config">&#xb6;</a>
+				
+				
+			</h2>
+			
+			<pre>type Config struct {
+    <span class="comment">// Адрес запуска HTTP-сервера. Пример: localhost:8080</span>
+<span id="Config.ServerAddress"></span>    ServerAddress <a href="http://localhost:8000/pkg/builtin/#string">string</a> `env:&#34;SERVER_ADDRESS&#34;` <span class="comment">// address to start the server</span>
+    <span class="comment">// Базовый адрес результирующего сокращённого URL</span>
+    <span class="comment">// Требования:</span>
+    <span class="comment">//     - Должен быть указан протокол (по умолчанию автоматически добавится http://): http/https</span>
+    <span class="comment">//     - Путь URL Path должен быть (по-умолчанию автоматически добавится /)</span>
+    <span class="comment">// Пример: http://localhost:8080/blablabla</span>
+<span id="Config.BaseURL"></span>    BaseURL         <a href="http://localhost:8000/pkg/builtin/#string">string</a> `env:&#34;BASE_URL&#34;` <span class="comment">// short URLs will be returned with this host</span>
+<span id="Config.LogLevel"></span>    LogLevel        <a href="http://localhost:8000/pkg/builtin/#string">string</a> `env:&#34;LOG_LEVEL&#34;`
+<span id="Config.FileStoragePath"></span>    FileStoragePath <a href="http://localhost:8000/pkg/builtin/#string">string</a> `env:&#34;FILE_STORAGE_PATH&#34;`
+<span id="Config.DatabaseDSN"></span>    DatabaseDSN     <a href="http://localhost:8000/pkg/builtin/#string">string</a> `env:&#34;DATABASE_DSN&#34;`
+}
+</pre>
+
+			
+
+			
+
+			
+			
+			
+
+			
+
+			
+				
+				<h3 id="Config.parseFlags">func (*Config) <a href="http://localhost:8000/src/github.com/MisterMaks/go-yandex-shortener/cmd/shortener/config.go?s=947:982#L16">parseFlags</a>
+					<a class="permalink" href="index.html?m=all.html#Config.parseFlags">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func (c *<a href="index.html?m=all.html#Config">Config</a>) parseFlags() <a href="http://localhost:8000/pkg/builtin/#error">error</a></pre>
+				
+				
+				
+				
+			
+		
+			
+			
+			<h2 id="Middlewares">type <a href="http://localhost:8000/src/github.com/MisterMaks/go-yandex-shortener/cmd/shortener/main.go?s=2430:2681#L66">Middlewares</a>
+				<a class="permalink" href="index.html?m=all.html#Middlewares">&#xb6;</a>
+				
+				
+			</h2>
+			
+			<pre>type Middlewares struct {
+<span id="Middlewares.RequestLogger"></span>    RequestLogger          func(<a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#Handler">Handler</a>) <a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#Handler">Handler</a>
+<span id="Middlewares.GzipMiddleware"></span>    GzipMiddleware         func(<a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#Handler">Handler</a>) <a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#Handler">Handler</a>
+<span id="Middlewares.Authenticate"></span>    Authenticate           func(<a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#Handler">Handler</a>) <a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#Handler">Handler</a>
+<span id="Middlewares.AuthenticateOrRegister"></span>    AuthenticateOrRegister func(<a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#Handler">Handler</a>) <a href="http://localhost:8000/pkg/net/http/">http</a>.<a href="http://localhost:8000/pkg/net/http/#Handler">Handler</a>
+}
+</pre>
+
+			
+
+			
+
+			
+			
+			
+
+			
+
+			
+		
+	
+
+	
+
+
+
+
+
+	
+	
+		<h2 id="pkg-subdirectories">Subdirectories</h2>
+	
+	<div class="pkg-dir">
+		<table>
+			<tr>
+				<th class="pkg-name">Name</th>
+				<th class="pkg-synopsis">Synopsis</th>
+			</tr>
+
+			
+			<tr>
+				<td colspan="2"><a href="http://localhost:8000/pkg/github.com/MisterMaks/go-yandex-shortener/cmd/">..</a></td>
+			</tr>
+			
+
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 0px;">
+						<a href="mocks/index.html%3Fm=all.html">mocks</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						Package mocks is a generated GoMock package.
+					</td>
+				</tr>
+			
+		</table>
+	</div>
+
+
+
+<div id="footer">
+Build version go1.22.3.<br>
+Except as <a href="https://developers.google.com/site-policies#restrictions">noted</a>,
+the content of this page is licensed under the
+Creative Commons Attribution 3.0 License,
+and code is licensed under a <a href="http://localhost:8000/LICENSE">BSD license</a>.<br>
+<a href="https://golang.org/doc/tos.html">Terms of Service</a> |
+<a href="https://www.google.com/intl/en/policies/privacy/">Privacy Policy</a>
+</div>
+
+</div><!-- .container -->
+</div><!-- #page -->
+</body>
+</html>
