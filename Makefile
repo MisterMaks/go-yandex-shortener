@@ -36,9 +36,7 @@ dcb:
 .PHONY: swagger
 swagger:
 	@echo "-- generating swagger"
-	swag init --output ./main/ -g ./internal/app/delivery/http.go
-	mv ./main/docs.go cmd/shortener/
-	mv ./main ./docs
+	swag init --output ./api/ -g ./internal/app/delivery/http.go
 
 .PHONY: godoc
 godoc:
