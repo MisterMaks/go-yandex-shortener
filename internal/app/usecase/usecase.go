@@ -14,6 +14,7 @@ import (
 	loggerInternal "github.com/MisterMaks/go-yandex-shortener/internal/logger"
 )
 
+// Constants for usecase.
 const (
 	Symbols      string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" // symbols for generating short URL
 	CountSymbols        = len(Symbols)                                                     // count symbols for generating short URL

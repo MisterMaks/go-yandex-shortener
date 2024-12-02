@@ -10,9 +10,8 @@ import (
 // ErrURLNotFound is error for not found URL.
 var ErrURLNotFound = errors.New("url not found")
 
-const (
-	DefaultCountURLs = 256 // default count URLs
-)
+// DefaultCountURLs constant for in-mem repo.
+const DefaultCountURLs = 256
 
 // AppRepoInmem in-memory application data storage.
 type AppRepoInmem struct {
