@@ -427,6 +427,8 @@ func TestAppHandler_Ping(t *testing.T) {
 			w := httptest.NewRecorder()
 			appHandler.Ping(w, req)
 			res := w.Result()
+			err := res.Body.Close()
+			require.NoError(t, err)
 			assert.Equal(t, tt.wantStatusCode, res.StatusCode, "Invalid status code")
 		})
 	}
