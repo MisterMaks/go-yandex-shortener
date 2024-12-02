@@ -30,7 +30,7 @@ jobs:
       - name: Run tests
         run: >-
           go test -coverprofile=unit.coverage.out ./...
-          bash < ( curl -Ls https://coverage.codacy.com/get.sh ) report \
+          bash < curl -Ls https://coverage.codacy.com/get.sh report \
               --force-coverage-parser go -r unit.coverage.out
         env:
           TEST_DATABASE_URI: "postgresql://postgres:postgres@postgres/praktikum?sslmode=disable"
