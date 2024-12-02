@@ -30,7 +30,11 @@ jobs:
       - name: Run tests
         run: |
           go test -coverprofile=unit.coverage.out ./...
-          bash <(curl -Ls https://coverage.codacy.com/get.sh) report --force-coverage-parser go -r unit.coverage.out
         env:
           TEST_DATABASE_URI: "postgresql://postgres:postgres@postgres/praktikum?sslmode=disable"
-          CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
+
+      - name: codacy-coverage-reporter
+        uses: codacy/codacy-coverage-reporter-action@v1.3.0
+        with:
+          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+          coverage-reports: ./unit.coverage.out
