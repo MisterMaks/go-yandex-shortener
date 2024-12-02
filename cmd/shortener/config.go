@@ -9,6 +9,7 @@ import (
 	"github.com/caarlos0/env/v11"
 )
 
+// Config config data for app.
 type Config struct {
 	// Адрес запуска HTTP-сервера. Пример: localhost:8080
 	ServerAddress string `env:"SERVER_ADDRESS"` // address to start the server

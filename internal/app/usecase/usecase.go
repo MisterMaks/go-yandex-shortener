@@ -15,10 +15,11 @@ import (
 )
 
 const (
-	Symbols      string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	CountSymbols        = len(Symbols)
+	Symbols      string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" // symbols for generating short URL
+	CountSymbols        = len(Symbols)                                                     // count symbols for generating short URL
 )
 
+// Errors for usecase.
 var (
 	ErrZeroLengthID            = errors.New("length ID == 0")
 	ErrZeroMaxLengthID         = errors.New("max length ID == 0")

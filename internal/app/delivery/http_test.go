@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -380,6 +381,316 @@ func TestAppHandler_RedirectToURL(t *testing.T) {
 				resBody, err := io.ReadAll(res.Body)
 				require.NoError(t, err)
 				assert.Equal(t, tt.want.response, string(resBody))
+			}
+		})
+	}
+}
+
+func TestAppHandler_Ping(t *testing.T) {
+	tests := []struct {
+		name             string
+		requestMethod    string
+		usecasePingError error
+		wantStatusCode   int
+	}{
+		{
+			name:             "simple case",
+			requestMethod:    http.MethodGet,
+			usecasePingError: nil,
+			wantStatusCode:   http.StatusOK,
+		},
+		{
+			name:             "internal server error",
+			requestMethod:    http.MethodGet,
+			usecasePingError: fmt.Errorf("internal server error"),
+			wantStatusCode:   http.StatusInternalServerError,
+		},
+		{
+			name:             "invalid method",
+			requestMethod:    http.MethodPost,
+			usecasePingError: nil,
+			wantStatusCode:   http.StatusMethodNotAllowed,
+		},
+	}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := mocks.NewMockAppUsecaseInterface(ctrl)
+			m.EXPECT().Ping().Return(tt.usecasePingError).AnyTimes()
+
+			appHandler := NewAppHandler(m)
+
+			req := httptest.NewRequest(tt.requestMethod, TestHost+"/ping", bytes.NewReader(nil))
+			w := httptest.NewRecorder()
+			appHandler.Ping(w, req)
+			res := w.Result()
+			assert.Equal(t, tt.wantStatusCode, res.StatusCode, "Invalid status code")
+		})
+	}
+}
+
+func TestAppHandler_APIGetOrCreateURLs(t *testing.T) {
+	contextUserID := uint(1)
+
+	type request struct {
+		method      string
+		body        []byte
+		contentType string
+		ctx         context.Context
+	}
+
+	type want struct {
+		statusCode int
+		body       []byte
+	}
+
+	tests := []struct {
+		name    string
+		request request
+		want    want
+	}{
+		{
+			name: "valid data",
+			request: request{
+				method:      http.MethodPost,
+				body:        []byte(fmt.Sprintf(`[{"correlation_id": "%s", "original_url": "%s"}]`, TestID, TestValidURL)),
+				contentType: ApplicationJSONKey,
+				ctx:         context.WithValue(context.Background(), usecase.UserIDKey, contextUserID),
+			},
+			want: want{
+				statusCode: http.StatusCreated,
+				body:       []byte(fmt.Sprintf(`[{"correlation_id": "%s", "short_url": "%s"}]`, TestID, TestHost+"/"+TestID)),
+			},
+		},
+		{
+			name: "invalid method",
+			request: request{
+				method:      http.MethodGet,
+				body:        []byte(fmt.Sprintf(`[{"correlation_id": "%s", "original_url": "%s"}]`, TestID, TestValidURL)),
+				contentType: ApplicationJSONKey,
+				ctx:         context.WithValue(context.Background(), usecase.UserIDKey, contextUserID),
+			},
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+				body:       nil,
+			},
+		},
+		{
+			name: "invalid Content-Type",
+			request: request{
+				method:      http.MethodPost,
+				body:        []byte(fmt.Sprintf(`[{"correlation_id": "%s", "original_url": "%s"}]`, TestID, TestValidURL)),
+				contentType: "invalid Content-Type",
+				ctx:         context.WithValue(context.Background(), usecase.UserIDKey, contextUserID),
+			},
+			want: want{
+				statusCode: http.StatusBadRequest,
+				body:       nil,
+			},
+		},
+		{
+			name: "invalid body",
+			request: request{
+				method:      http.MethodPost,
+				body:        []byte(fmt.Sprintf(`[{"correlation_id": "%s", "original_url": "%s"`, TestID, TestValidURL)),
+				contentType: ApplicationJSONKey,
+				ctx:         context.WithValue(context.Background(), usecase.UserIDKey, contextUserID),
+			},
+			want: want{
+				statusCode: http.StatusBadRequest,
+				body:       nil,
+			},
+		},
+		{
+			name: "unauthorized user",
+			request: request{
+				method:      http.MethodPost,
+				body:        []byte(fmt.Sprintf(`[{"correlation_id": "%s", "original_url": "%s"}]`, TestID, TestValidURL)),
+				contentType: ApplicationJSONKey,
+				ctx:         context.Background(),
+			},
+			want: want{
+				statusCode: http.StatusUnauthorized,
+				body:       nil,
+			},
+		},
+	}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	m := mocks.NewMockAppUsecaseInterface(ctrl)
+
+	requestBatchURLs := []app.RequestBatchURL{
+		{
+			CorrelationID: TestID,
+			OriginalURL:   TestValidURL,
+		},
+	}
+
+	responseBatchURLs := []app.ResponseBatchURL{
+		{
+			CorrelationID: TestID,
+			ShortURL:      TestHost + "/" + TestID,
+		},
+	}
+
+	m.EXPECT().GetOrCreateURLs(requestBatchURLs, contextUserID).Return(responseBatchURLs, nil).AnyTimes()
+
+	appHandler := NewAppHandler(m)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(tt.request.method, TestHost+"/api/shorten/batch", bytes.NewReader(tt.request.body))
+			req.Header.Set(ContentTypeKey, tt.request.contentType)
+			req = req.WithContext(tt.request.ctx)
+
+			w := httptest.NewRecorder()
+
+			appHandler.APIGetOrCreateURLs(w, req)
+
+			res := w.Result()
+
+			resBody, err := io.ReadAll(res.Body)
+			require.NoError(t, err)
+			err = res.Body.Close()
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.want.statusCode, res.StatusCode, "Invalid status code")
+
+			if res.StatusCode == http.StatusCreated {
+				assert.JSONEq(t, string(tt.want.body), string(resBody))
+			}
+		})
+	}
+}
+
+func TestAppHandler_APIGetUserURLs(t *testing.T) {
+	contextUserID := uint(1)
+
+	type request struct {
+		method string
+		ctx    context.Context
+	}
+
+	type usecaseGetUserURLsResponse struct {
+		userID   uint
+		userURLs []app.ResponseUserURL
+		err      error
+	}
+
+	type want struct {
+		statusCode int
+		body       []byte
+	}
+
+	tests := []struct {
+		name                       string
+		request                    request
+		usecaseGetUserURLsResponse usecaseGetUserURLsResponse
+		want                       want
+	}{
+		{
+			name: "valid data",
+			request: request{
+				method: http.MethodGet,
+				ctx:    context.WithValue(context.Background(), usecase.UserIDKey, contextUserID),
+			},
+			usecaseGetUserURLsResponse: usecaseGetUserURLsResponse{
+				userID:   contextUserID,
+				userURLs: []app.ResponseUserURL{{OriginalURL: TestValidURL, ShortURL: TestHost + "/" + TestID}},
+				err:      nil,
+			},
+			want: want{
+				statusCode: http.StatusOK,
+				body:       []byte(fmt.Sprintf(`[{"original_url": "%s", "short_url": "%s"}]`, TestValidURL, TestHost+"/"+TestID)),
+			},
+		},
+		{
+			name: "no content",
+			request: request{
+				method: http.MethodGet,
+				ctx:    context.WithValue(context.Background(), usecase.UserIDKey, contextUserID),
+			},
+			usecaseGetUserURLsResponse: usecaseGetUserURLsResponse{
+				userID:   contextUserID,
+				userURLs: nil,
+				err:      nil,
+			},
+			want: want{
+				statusCode: http.StatusNoContent,
+				body:       nil,
+			},
+		},
+		{
+			name: "invalid method",
+			request: request{
+				method: http.MethodPost,
+				ctx:    context.WithValue(context.Background(), usecase.UserIDKey, contextUserID),
+			},
+			usecaseGetUserURLsResponse: usecaseGetUserURLsResponse{
+				userID:   contextUserID,
+				userURLs: []app.ResponseUserURL{{OriginalURL: TestValidURL, ShortURL: TestHost + "/" + TestID}},
+				err:      nil,
+			},
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+				body:       nil,
+			},
+		},
+		{
+			name: "unauthorized user",
+			request: request{
+				method: http.MethodGet,
+				ctx:    context.Background(),
+			},
+			usecaseGetUserURLsResponse: usecaseGetUserURLsResponse{
+				userID:   contextUserID,
+				userURLs: []app.ResponseUserURL{{OriginalURL: TestValidURL, ShortURL: TestHost + "/" + TestID}},
+				err:      nil,
+			},
+			want: want{
+				statusCode: http.StatusUnauthorized,
+				body:       nil,
+			},
+		},
+	}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := mocks.NewMockAppUsecaseInterface(ctrl)
+			m.EXPECT().GetUserURLs(tt.usecaseGetUserURLsResponse.userID).
+				Return(
+					tt.usecaseGetUserURLsResponse.userURLs,
+					tt.usecaseGetUserURLsResponse.err,
+				).AnyTimes()
+
+			appHandler := NewAppHandler(m)
+
+			req := httptest.NewRequest(tt.request.method, TestHost+"/api/user/urls", nil)
+			req = req.WithContext(tt.request.ctx)
+
+			w := httptest.NewRecorder()
+
+			appHandler.APIGetUserURLs(w, req)
+
+			res := w.Result()
+
+			resBody, err := io.ReadAll(res.Body)
+			require.NoError(t, err)
+			err = res.Body.Close()
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.want.statusCode, res.StatusCode, "Invalid status code")
+
+			if res.StatusCode == http.StatusCreated {
+				assert.JSONEq(t, string(tt.want.body), string(resBody))
 			}
 		})
 	}

@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// Constants for http handlers.
 const (
 	ContentTypeKey     string = "Content-Type"
 	TextPlainKey       string = "text/plain"

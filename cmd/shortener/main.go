@@ -28,6 +28,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// App constants.
 const (
 	Addr                          string = "localhost:8080"
 	ResultAddrPrefix              string = "http://localhost:8080/"
@@ -63,6 +64,7 @@ func migrate(dsn string) error {
 	return goose.RunContext(ctx, "up", db, "./migrations/")
 }
 
+// AppHandlerInterface contains the necessary functions for the handlers of app.
 type AppHandlerInterface interface {
 	GetOrCreateURL(w http.ResponseWriter, r *http.Request)
 	APIGetOrCreateURL(w http.ResponseWriter, r *http.Request)
@@ -73,6 +75,7 @@ type AppHandlerInterface interface {
 	APIDeleteUserURLs(w http.ResponseWriter, r *http.Request)
 }
 
+// Middlewares used middlewares.
 type Middlewares struct {
 	RequestLogger          func(http.Handler) http.Handler
 	GzipMiddleware         func(http.Handler) http.Handler

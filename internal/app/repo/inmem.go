@@ -7,10 +7,11 @@ import (
 	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 )
 
+// ErrURLNotFound is error for not found URL.
 var ErrURLNotFound = errors.New("url not found")
 
 const (
-	DefaultCountURLs = 256
+	DefaultCountURLs = 256 // default count URLs
 )
 
 // AppRepoInmem in-memory application data storage.

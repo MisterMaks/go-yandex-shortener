@@ -17,6 +17,7 @@ func NewAppRepoPostgres(db *sql.DB) (*AppRepoPostgres, error) {
 	return &AppRepoPostgres{db: db}, nil
 }
 
+// GetOrCreateURL insert new URL in DB or get existed URL.
 func (arp *AppRepoPostgres) GetOrCreateURL(id, rawURL string, userID uint) (*app.URL, error) {
 	query := `INSERT INTO url (url, url_id, user_id) 
 VALUES ($1, $2, $3) 
@@ -30,6 +31,7 @@ RETURNING url_id, user_id;`
 	return url, nil
 }
 
+// GetURL get URL from DB.
 func (arp *AppRepoPostgres) GetURL(id string) (*app.URL, error) {
 	query := `SELECT url, url_id, is_deleted FROM url WHERE url_id = $1;`
 	url := &app.URL{}
@@ -40,6 +42,7 @@ func (arp *AppRepoPostgres) GetURL(id string) (*app.URL, error) {
 	return url, nil
 }
 
+// CheckIDExistence check ID existence in DB.
 func (arp *AppRepoPostgres) CheckIDExistence(id string) (bool, error) {
 	query := `SELECT true FROM url WHERE url_id = $1;`
 	var exists bool
@@ -53,10 +56,12 @@ func (arp *AppRepoPostgres) CheckIDExistence(id string) (bool, error) {
 	return true, nil
 }
 
+// Ping ping DB.
 func (arp *AppRepoPostgres) Ping() error {
 	return arp.db.Ping()
 }
 
+// GetOrCreateURLs insert batch URLs or get existed URLs from DB.
 func (arp *AppRepoPostgres) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error) {
 	query := `INSERT INTO url (url, url_id, user_id) VALUES `
 	args := make([]interface{}, 0, len(urls)*3)
@@ -100,6 +105,7 @@ RETURNING url, url_id, user_id;`
 	return urls, err
 }
 
+// GetUserURLs get user URLs from DB.
 func (arp *AppRepoPostgres) GetUserURLs(userID uint) ([]*app.URL, error) {
 	query := `SELECT url, url_id FROM url WHERE user_id = $1;`
 
@@ -130,6 +136,7 @@ func (arp *AppRepoPostgres) GetUserURLs(userID uint) ([]*app.URL, error) {
 	return urls, err
 }
 
+// DeleteUserURLs delete user URLs from DB.
 func (arp *AppRepoPostgres) DeleteUserURLs(urls []*app.URL) error {
 	query := `UPDATE url SET is_deleted = true WHERE `
 	args := make([]interface{}, 0, len(urls)*2)

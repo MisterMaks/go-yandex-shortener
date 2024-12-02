@@ -12,13 +12,16 @@ import (
 	"go.uber.org/zap"
 )
 
+// UserIDKeyType is type for UserIDKey constant.
 type UserIDKeyType string
 
+// Constants for usecase.
 const (
 	UserIDKey      UserIDKeyType = "user_id"
 	AccessTokenKey string        = "accessToken"
 )
 
+// Claims is jwt.RegisteredClaims with UserID field.
 type Claims struct {
 	jwt.RegisteredClaims
 	UserID uint
@@ -84,6 +87,7 @@ func (uu *UserUsecase) getUserID(tokenString string) (uint, error) {
 	return claims.UserID, nil
 }
 
+// CreateUser create user.
 func (uu *UserUsecase) CreateUser() (*user.User, error) {
 	return uu.UserRepo.CreateUser()
 }
