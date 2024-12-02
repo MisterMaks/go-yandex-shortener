@@ -15,6 +15,7 @@ import (
 	"github.com/pressly/goose/v3"
 	httpSwagger "github.com/swaggo/http-swagger"
 
+	"github.com/MisterMaks/go-yandex-shortener/api"
 	appDeliveryInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/delivery"
 	appRepoInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/repo"
 	appUsecaseInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/usecase"
@@ -87,8 +88,8 @@ func shortenerRouter(
 	r := chi.NewRouter()
 	r.Use(middlewares.RequestLogger)
 
-	SwaggerInfo.Host = baseURL.Host
-	SwaggerInfo.Schemes = []string{"http", "https"}
+	api.SwaggerInfo.Host = baseURL.Host
+	api.SwaggerInfo.Schemes = []string{"http", "https"}
 	r.Get("/swagger/*", httpSwagger.Handler())
 
 	redirectPathPrefix := strings.TrimPrefix(baseURL.Path, "/")
