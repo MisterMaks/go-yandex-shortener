@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
+	"strings"
 
 	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 )
@@ -93,15 +94,21 @@ func (c *consumer) readURL() (*app.URL, error) {
 }
 
 func (c *consumer) readURLs() ([]*app.URL, error) {
-	urls := []*app.URL{}
-	for {
-		url, err := c.readURL()
-		if err != nil {
-			return nil, err
-		}
-		if url == nil {
-			return urls, nil
-		}
-		urls = append(urls, url)
+	urls := make([]*app.URL, 0, DefaultCountURLs)
+
+	bytes, err := os.ReadFile(c.file.Name())
+	if err != nil {
+		return nil, err
 	}
+
+	bytesStr := string(bytes)
+	bytesStrForJSON := "[" + strings.ReplaceAll(bytesStr, "}\n{", "},\n{") + "]"
+	bytes = []byte(bytesStrForJSON)
+
+	err = json.Unmarshal(bytes, &urls)
+	if err != nil {
+		return nil, err
+	}
+
+	return urls, nil
 }

@@ -2,22 +2,27 @@ package repo
 
 import (
 	"os"
+	"strconv"
 	"sync"
 	"testing"
 
 	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
-	TestFilename string = "../../../test/internal_app_repo_inmem_test.txt"
+	TestFilenamePattern string = "internal_app_repo_inmem_test_*.json"
 )
 
 func TestNewAppRepoInmem(t *testing.T) {
-	appRepoInMem, err := NewAppRepoInmem(TestFilename)
+	tmpFile, err := os.CreateTemp("", TestFilenamePattern)
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	appRepoInMem, err := NewAppRepoInmem(tmpFile.Name(), tmpFile.Name())
 	assert.NoError(t, err)
 	assert.NotNil(t, appRepoInMem)
-	os.Remove(TestFilename)
 }
 
 func TestAppRepoInmem_GetOrCreateURL(t *testing.T) {
@@ -80,9 +85,13 @@ func TestAppRepoInmem_GetOrCreateURL(t *testing.T) {
 		},
 	}
 
+	tmpFile, err := os.CreateTemp("", TestFilenamePattern)
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			producer, err := newProducer(TestFilename)
+			producer, err := newProducer(tmpFile.Name())
 			if err != nil {
 				t.Fatalf("CRITICAL\tUnexpected error. Error: %v\n", err)
 			}
@@ -101,7 +110,6 @@ func TestAppRepoInmem_GetOrCreateURL(t *testing.T) {
 			assert.Contains(t, ari.urls, url)
 		})
 	}
-	os.Remove(TestFilename)
 }
 
 func TestAppRepoInmem_GetURL(t *testing.T) {
@@ -168,7 +176,6 @@ func TestAppRepoInmem_GetURL(t *testing.T) {
 			assert.Equal(t, tt.want.url, url)
 		})
 	}
-	os.Remove(TestFilename)
 }
 
 func TestAppRepoInmem_CheckIDExistence(t *testing.T) {
@@ -216,9 +223,14 @@ func TestAppRepoInmem_CheckIDExistence(t *testing.T) {
 			},
 		},
 	}
+
+	tmpFile, err := os.CreateTemp("", TestFilenamePattern)
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			producer, err := newProducer(TestFilename)
+			producer, err := newProducer(tmpFile.Name())
 			if err != nil {
 				t.Fatalf("CRITICAL\tUnexpected error. Error: %v\n", err)
 			}
@@ -236,5 +248,141 @@ func TestAppRepoInmem_CheckIDExistence(t *testing.T) {
 			assert.Equal(t, tt.want.checked, checked)
 		})
 	}
-	os.Remove(TestFilename)
+}
+
+func generateTestURLID(id, userID uint) string {
+	return strconv.FormatUint(uint64(id), 10) + "_" + strconv.FormatUint(uint64(userID), 10)
+}
+
+func generateTestURLs(countUsers, countUserURLs uint) []*app.URL {
+	defaultURL := "test_url"
+	urls := make([]*app.URL, 0, countUserURLs*countUsers)
+
+	for i := uint(0); i < countUsers; i++ {
+		userID := i
+		url := defaultURL + "_" + strconv.FormatUint(uint64(i), 10)
+
+		for j := uint(0); j < countUserURLs; j++ {
+			id := generateTestURLID(j, userID)
+			urls = append(urls, &app.URL{
+				ID:        id,
+				URL:       url,
+				UserID:    userID,
+				IsDeleted: false,
+			})
+		}
+	}
+
+	return urls
+}
+
+func BenchmarkAppRepoInmem_GetOrCreateURL(b *testing.B) {
+	urls := generateTestURLs(10, 10)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+
+		appRepoInmem, err := NewAppRepoInmem("", "")
+		require.NoError(b, err)
+
+		for _, url := range urls {
+			b.StartTimer()
+			appRepoInmem.GetOrCreateURL(url.ID, url.URL, url.UserID)
+			b.StopTimer()
+		}
+
+		for _, url := range urls[1 : len(urls)-2] {
+			b.StartTimer()
+			appRepoInmem.GetOrCreateURL(url.ID, url.URL, url.UserID)
+			b.StopTimer()
+		}
+
+		appRepoInmem.Close()
+	}
+}
+
+func BenchmarkAppRepoInmem_GetOrCreateURLs(b *testing.B) {
+	urls := generateTestURLs(10, 10)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+
+		appRepoInmem, err := NewAppRepoInmem("", "")
+		require.NoError(b, err)
+
+		b.StartTimer()
+		appRepoInmem.GetOrCreateURLs(urls)
+		appRepoInmem.GetOrCreateURLs(urls[1 : len(urls)-2])
+		b.StopTimer()
+
+		appRepoInmem.Close()
+	}
+}
+
+func BenchmarkAppRepoInmem_CheckIDExistence(b *testing.B) {
+	urls := generateTestURLs(10, 10)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+
+		appRepoInmem, err := NewAppRepoInmem("", "")
+		require.NoError(b, err)
+
+		_, err = appRepoInmem.GetOrCreateURLs(urls)
+		require.NoError(b, err)
+
+		b.StartTimer()
+		appRepoInmem.CheckIDExistence(urls[3].ID)
+		appRepoInmem.CheckIDExistence("aaa")
+		b.StopTimer()
+
+		appRepoInmem.Close()
+	}
+}
+
+func BenchmarkAppRepoInmem_GetUserURLs(b *testing.B) {
+	urls := generateTestURLs(10, 10)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+
+		appRepoInmem, err := NewAppRepoInmem("", "")
+		require.NoError(b, err)
+
+		_, err = appRepoInmem.GetOrCreateURLs(urls)
+		require.NoError(b, err)
+
+		b.StartTimer()
+		appRepoInmem.GetUserURLs(urls[len(urls)/2].UserID)
+		appRepoInmem.GetUserURLs(uint(len(urls)) * 2)
+		b.StopTimer()
+
+		appRepoInmem.Close()
+	}
+}
+
+func BenchmarkAppRepoInmem_DeleteUserURLs(b *testing.B) {
+	urls := generateTestURLs(10, 10)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+
+		appRepoInmem, err := NewAppRepoInmem("", "")
+		require.NoError(b, err)
+
+		_, err = appRepoInmem.GetOrCreateURLs(urls)
+		require.NoError(b, err)
+
+		b.StartTimer()
+		appRepoInmem.DeleteUserURLs(urls[3 : len(urls)-5])
+		appRepoInmem.DeleteUserURLs([]*app.URL{{ID: "aaa", UserID: uint(len(urls)) * 2}})
+		b.StopTimer()
+
+		appRepoInmem.Close()
+	}
 }

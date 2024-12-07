@@ -9,15 +9,16 @@ import (
 	"github.com/caarlos0/env/v11"
 )
 
+// Config config data for app.
 type Config struct {
 	// Адрес запуска HTTP-сервера. Пример: localhost:8080
-	ServerAddress string `env:"SERVER_ADDRESS"`
+	ServerAddress string `env:"SERVER_ADDRESS"` // address to start the server
 	// Базовый адрес результирующего сокращённого URL
 	// Требования:
 	//     - Должен быть указан протокол (по умолчанию автоматически добавится http://): http/https
 	//     - Путь URL Path должен быть (по-умолчанию автоматически добавится /)
 	// Пример: http://localhost:8080/blablabla
-	BaseURL         string `env:"BASE_URL"`
+	BaseURL         string `env:"BASE_URL"` // short URLs will be returned with this host
 	LogLevel        string `env:"LOG_LEVEL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	DatabaseDSN     string `env:"DATABASE_DSN"`

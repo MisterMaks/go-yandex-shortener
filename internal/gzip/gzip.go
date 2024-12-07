@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// Used constants.
 const (
 	ContentTypeKey     string = "Content-Type"
 	TextHTTPKey        string = "text/plain"
@@ -30,14 +31,17 @@ func newCompressWriter(w http.ResponseWriter) *compressWriter {
 	}
 }
 
+// Header return response header.
 func (c *compressWriter) Header() http.Header {
 	return c.w.Header()
 }
 
+// Write write data.
 func (c *compressWriter) Write(p []byte) (int, error) {
 	return c.zw.Write(p)
 }
 
+// WriteHeader write header.
 func (c *compressWriter) WriteHeader(statusCode int) {
 	if statusCode < 300 {
 		c.w.Header().Set(ContentEncodingKey, GzipKey)
@@ -69,10 +73,12 @@ func newCompressReader(r io.ReadCloser) (*compressReader, error) {
 	}, nil
 }
 
+// Read read data.
 func (c compressReader) Read(p []byte) (n int, err error) {
 	return c.zr.Read(p)
 }
 
+// Close close reader.
 func (c *compressReader) Close() error {
 	if err := c.r.Close(); err != nil {
 		return err
@@ -80,6 +86,7 @@ func (c *compressReader) Close() error {
 	return c.zr.Close()
 }
 
+// GzipMiddleware middleware for zip data in response and unzip data from request.
 func GzipMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		contentType := r.Header.Get(ContentTypeKey)

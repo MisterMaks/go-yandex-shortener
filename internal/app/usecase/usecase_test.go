@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/MisterMaks/go-yandex-shortener/internal/app"
+	"github.com/MisterMaks/go-yandex-shortener/internal/app/usecase/mocks"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -65,44 +67,16 @@ func Test_generateID(t *testing.T) {
 	}
 }
 
-type testAppRepo struct{}
-
-func (tar *testAppRepo) GetOrCreateURL(_, rawURL string, userID uint) (*app.URL, error) {
-	url := &app.URL{ID: TestURLID, URL: rawURL, UserID: userID}
-	return url, nil
-}
-
-func (tar *testAppRepo) GetURL(id string) (*app.URL, error) {
-	switch id {
-	case TestURLID:
-		return &app.URL{
-			ID:  TestURLID,
-			URL: TestURL,
-		}, nil
-	}
-	return nil, ErrTestIDNotFound
-}
-
-func (tar *testAppRepo) CheckIDExistence(id string) (bool, error) {
-	return id == TestURLID, nil
-}
-
-// TODO
-func (tar *testAppRepo) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error) {
-	return []*app.URL{}, nil
-}
-
-// TODO
-func (tar *testAppRepo) GetUserURLs(userID uint) ([]*app.URL, error) {
-	return []*app.URL{}, nil
-}
-
-// TODO
-func (tar *testAppRepo) DeleteUserURLs(urls []*app.URL) error {
-	return nil
-}
-
 func TestNewAppUsecase(t *testing.T) {
+	// создаём контроллер
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// создаём объект-заглушку
+	m := mocks.NewMockAppRepoInterface(ctrl)
+
+	m.EXPECT().DeleteUserURLs(gomock.Any()).Return(nil).AnyTimes()
+
 	type args struct {
 		resultAddrPrefix              string
 		countRegenerationsForLengthID uint
@@ -129,7 +103,7 @@ func TestNewAppUsecase(t *testing.T) {
 			},
 			want: want{
 				appUsecase: &AppUsecase{
-					AppRepo:                       &testAppRepo{},
+					AppRepo:                       m,
 					BaseURL:                       "http://example.com/",
 					CountRegenerationsForLengthID: 1,
 					LengthID:                      1,
@@ -209,9 +183,8 @@ func TestNewAppUsecase(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tar := &testAppRepo{}
 			appUsecase, err := NewAppUsecase(
-				tar,
+				m,
 				tt.args.resultAddrPrefix,
 				tt.args.countRegenerationsForLengthID,
 				tt.args.lengthID,
@@ -301,12 +274,24 @@ func TestAppUsecase_GetOrCreateURL(t *testing.T) {
 		},
 	}
 
-	tar := &testAppRepo{}
+	// создаём контроллер
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// создаём объект-заглушку
+	m := mocks.NewMockAppRepoInterface(ctrl)
+
+	m.EXPECT().GetOrCreateURL(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_, rawURL string, userID uint) (*app.URL, error) {
+		url := &app.URL{ID: TestURLID, URL: rawURL, UserID: userID}
+		return url, nil
+	}).AnyTimes()
+	m.EXPECT().CheckIDExistence(TestURLID).Return(true, nil).AnyTimes()
+	m.EXPECT().CheckIDExistence(gomock.Any()).Return(false, nil).AnyTimes()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			au := &AppUsecase{
-				AppRepo:                       tar,
+				AppRepo:                       m,
 				CountRegenerationsForLengthID: tt.fields.countRegenerationsForLengthID,
 				LengthID:                      tt.fields.lengthID,
 				MaxLengthID:                   tt.fields.maxLengthID,
@@ -373,12 +358,23 @@ func TestAppUsecase_GetURL(t *testing.T) {
 		},
 	}
 
-	tar := &testAppRepo{}
+	// создаём контроллер
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// создаём объект-заглушку
+	m := mocks.NewMockAppRepoInterface(ctrl)
+
+	m.EXPECT().GetURL(TestURLID).Return(&app.URL{
+		ID:  TestURLID,
+		URL: TestURL,
+	}, nil).AnyTimes()
+	m.EXPECT().GetURL(gomock.Any()).Return(nil, ErrTestIDNotFound)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			au := &AppUsecase{
-				AppRepo:                       tar,
+				AppRepo:                       m,
 				CountRegenerationsForLengthID: tt.fields.countRegenerationsForLengthID,
 				LengthID:                      tt.fields.lengthID,
 				MaxLengthID:                   tt.fields.maxLengthID,
@@ -435,12 +431,17 @@ func TestAppUsecase_GenerateShortURL(t *testing.T) {
 		},
 	}
 
-	tar := &testAppRepo{}
+	// создаём контроллер
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// создаём объект-заглушку
+	m := mocks.NewMockAppRepoInterface(ctrl)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			au := &AppUsecase{
-				AppRepo:                       tar,
+				AppRepo:                       m,
 				BaseURL:                       "http://example.com/",
 				CountRegenerationsForLengthID: tt.fields.countRegenerationsForLengthID,
 				LengthID:                      tt.fields.lengthID,

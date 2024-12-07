@@ -1,24 +1,26 @@
 package usecase
 
 import (
-	"context"
 	"database/sql"
 	"errors"
-	"go.uber.org/zap"
 	"math/rand"
 	"net/url"
 	"regexp"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 	loggerInternal "github.com/MisterMaks/go-yandex-shortener/internal/logger"
 )
 
+// Constants for usecase.
 const (
-	Symbols      string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	CountSymbols        = len(Symbols)
+	Symbols      string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" // symbols for generating short URL
+	CountSymbols        = len(Symbols)                                                     // count symbols for generating short URL
 )
 
+// Errors for usecase.
 var (
 	ErrZeroLengthID            = errors.New("length ID == 0")
 	ErrZeroMaxLengthID         = errors.New("max length ID == 0")
@@ -53,31 +55,34 @@ func parseURL(rawURL string) (string, error) {
 	return parsedRequestURI, nil
 }
 
+// AppRepoInterface contains the necessary functions for storage.
 type AppRepoInterface interface {
-	GetOrCreateURL(id, rawURL string, userID uint) (*app.URL, error)
-	GetURL(id string) (*app.URL, error)
-	CheckIDExistence(id string) (bool, error)
-	GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error)
-	GetUserURLs(userID uint) ([]*app.URL, error)
-	DeleteUserURLs(urls []*app.URL) error
+	GetOrCreateURL(id, rawURL string, userID uint) (*app.URL, error) // get created or create short URL for request URL
+	GetURL(id string) (*app.URL, error)                              // get original URL for short URL
+	CheckIDExistence(id string) (bool, error)                        // check URL ID existence
+	GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error)             // get created or create URLs
+	GetUserURLs(userID uint) ([]*app.URL, error)                     // get user URLs
+	DeleteUserURLs(urls []*app.URL) error                            // delete urls
 }
 
+// AppUsecase business logic struct.
 type AppUsecase struct {
-	AppRepo AppRepoInterface
+	AppRepo AppRepoInterface // storage
 
-	BaseURL                       string
-	CountRegenerationsForLengthID uint
-	LengthID                      uint
-	MaxLengthID                   uint
+	BaseURL                       string // base URL
+	CountRegenerationsForLengthID uint   // count regenerations for length ID
+	LengthID                      uint   // length ID
+	MaxLengthID                   uint   // max length ID
 
 	db *sql.DB
 
-	deleteURLsChan      chan *app.URL
-	deleteURLsTicker    *time.Ticker
-	deleteURLsCtx       context.Context
-	deleteURLsCtxCancel context.CancelFunc
+	deleteURLsChan   chan *app.URL
+	deleteURLsTicker *time.Ticker
+
+	doneCh chan struct{}
 }
 
+// NewAppUsecase creates *AppUsecase.
 func NewAppUsecase(
 	appRepo AppRepoInterface,
 	baseURL string,
@@ -103,7 +108,7 @@ func NewAppUsecase(
 		return nil, ErrInvalidBaseURL
 	}
 
-	deleteURLsCtx, deleteURLsCtxCancel := context.WithCancel(context.Background())
+	doneCh := make(chan struct{})
 
 	appUsecase := &AppUsecase{
 		AppRepo:                       appRepo,
@@ -114,8 +119,8 @@ func NewAppUsecase(
 		db:                            db,
 		deleteURLsChan:                make(chan *app.URL, deleteURLsChanSize),
 		deleteURLsTicker:              time.NewTicker(deleteURLsWaitingTime),
-		deleteURLsCtx:                 deleteURLsCtx,
-		deleteURLsCtxCancel:           deleteURLsCtxCancel,
+
+		doneCh: doneCh,
 	}
 
 	go appUsecase.deleteUserURLs()
@@ -154,6 +159,9 @@ func (au *AppUsecase) generateID() (string, error) {
 	return id, nil
 }
 
+// GetOrCreateURL get created or create short URL for request URL.
+// Func generate unique short URL for rawURL, save and return it or return short URL (if rawURL existed).
+// Func return URL struct, true if rawURL is new or false if rawURL exists and error.
 func (au *AppUsecase) GetOrCreateURL(rawURL string, userID uint) (*app.URL, bool, error) {
 	_, err := parseURL(rawURL)
 	if err != nil {
@@ -170,18 +178,25 @@ func (au *AppUsecase) GetOrCreateURL(rawURL string, userID uint) (*app.URL, bool
 	return appURL, appURL.ID != id, err
 }
 
+// GetURL get original URL for short URL.
 func (au *AppUsecase) GetURL(id string) (*app.URL, error) {
 	return au.AppRepo.GetURL(id)
 }
 
+// GenerateShortURL generate short URL.
+// Func concatenate BaseURL and URL ID.
 func (au *AppUsecase) GenerateShortURL(id string) string {
 	return au.BaseURL + id
 }
 
+// Ping ping database.
 func (au *AppUsecase) Ping() error {
 	return au.db.Ping()
 }
 
+// GetOrCreateURLs get created or create short URLs for request batch URLs.
+// Func generate unique short URL for every OriginalURL (or get existed short URL for OriginalURL) in requestBatchURLs,
+// save new URLs in repo and return []app.ResponseBatchURL.
 func (au *AppUsecase) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL, userID uint) ([]app.ResponseBatchURL, error) {
 	urls := []*app.URL{}
 	for _, rbu := range requestBatchURLs {
@@ -212,6 +227,7 @@ func (au *AppUsecase) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL, us
 	return responseBatchURLs, nil
 }
 
+// GetUserURLs get short and original URLs for user.
 func (au *AppUsecase) GetUserURLs(userID uint) ([]app.ResponseUserURL, error) {
 	urls, err := au.AppRepo.GetUserURLs(userID)
 	if err != nil {
@@ -229,12 +245,13 @@ func (au *AppUsecase) GetUserURLs(userID uint) ([]app.ResponseUserURL, error) {
 	return responseUserURLs, nil
 }
 
+// SendDeleteUserURLsInChan send urls in delete chan.
 func (au *AppUsecase) SendDeleteUserURLsInChan(userID uint, urlIDs []string) {
 	go func() {
 		for _, urlID := range urlIDs {
 			select {
 			case au.deleteURLsChan <- &app.URL{ID: urlID, UserID: userID}:
-			case <-au.deleteURLsCtx.Done():
+			case <-au.doneCh:
 				return
 			}
 		}
@@ -269,8 +286,9 @@ func (au *AppUsecase) deleteUserURLs() {
 	}
 }
 
+// Close closing channels and stop executing requests/tasks.
 func (au *AppUsecase) Close() error {
 	close(au.deleteURLsChan)
-	au.deleteURLsCtxCancel()
+	close(au.doneCh)
 	return nil
 }

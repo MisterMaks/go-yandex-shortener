@@ -10,11 +10,13 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// Log is global logger.
 var Log *zap.Logger = zap.NewNop()
 
-type ContextRequestIDKeyType string
+// LoggerKeyType is type for LoggerKey constant.
 type LoggerKeyType string
 
+// Constants for logget.
 const (
 	MethodKey            string        = "method"
 	URIKey               string        = "uri"
@@ -25,6 +27,7 @@ const (
 	LoggerKey            LoggerKeyType = "logger_key"
 )
 
+// Initialize init logger.
 func Initialize(level string) error {
 	// преобразуем текстовый уровень логирования в zap.AtomicLevel
 	lvl, err := zap.ParseAtomicLevel(level)
@@ -51,23 +54,27 @@ func generateRequestID() string {
 	return id.String()
 }
 
+// LoggerResponseWriter is logger for responses.
 type LoggerResponseWriter struct {
 	http.ResponseWriter
 	bodySize   int
 	statusCode int
 }
 
+// WriteHeader write status code in header.
 func (lrw *LoggerResponseWriter) WriteHeader(statusCode int) {
 	lrw.ResponseWriter.WriteHeader(statusCode)
 	lrw.statusCode = statusCode
 }
 
+// WriteHeader write data in reponse and get body size.
 func (lrw *LoggerResponseWriter) Write(bytes []byte) (int, error) {
 	bodySize, err := lrw.ResponseWriter.Write(bytes)
 	lrw.bodySize = bodySize
 	return bodySize, err
 }
 
+// RequestLogger is logger middleware for app.
 func RequestLogger(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestID := generateRequestID()
@@ -92,6 +99,7 @@ func RequestLogger(h http.Handler) http.Handler {
 	})
 }
 
+// GetContextLogger gets logger from context.
 func GetContextLogger(ctx context.Context) *zap.Logger {
 	if ctx == nil {
 		return Log

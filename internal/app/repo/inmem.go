@@ -7,18 +7,25 @@ import (
 	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 )
 
+// ErrURLNotFound is error for not found URL.
 var ErrURLNotFound = errors.New("url not found")
 
+// DefaultCountURLs constant for in-mem repo.
+const DefaultCountURLs = 256
+
+// AppRepoInmem in-memory application data storage.
 type AppRepoInmem struct {
-	urls     []*app.URL
-	mu       sync.RWMutex
-	producer *producer
+	urls              []*app.URL
+	mu                sync.RWMutex
+	producer          *producer
+	deleteURLProducer *producer
 }
 
-func NewAppRepoInmem(filename string) (*AppRepoInmem, error) {
+// NewAppRepoInmem creates *AppRepoInmem and loads saved data from file.
+func NewAppRepoInmem(filename string, deletedURLsFilename string) (*AppRepoInmem, error) {
 	if filename == "" {
 		return &AppRepoInmem{
-			urls:     []*app.URL{},
+			urls:     make([]*app.URL, 0, DefaultCountURLs),
 			mu:       sync.RWMutex{},
 			producer: nil,
 		}, nil
@@ -28,22 +35,50 @@ func NewAppRepoInmem(filename string) (*AppRepoInmem, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer consumer.close()
 	urls, err := consumer.readURLs()
 	if err != nil {
 		return nil, err
 	}
+	consumer.close()
+
+	consumer, err = newConsumer(deletedURLsFilename)
+	if err != nil {
+		return nil, err
+	}
+	deletedURLs, err := consumer.readURLs()
+	if err != nil {
+		return nil, err
+	}
+	consumer.close()
+
+	for _, deletedURL := range deletedURLs {
+		for _, url := range urls {
+			if url.ID == deletedURL.URL {
+				url.IsDeleted = true
+				continue
+			}
+		}
+	}
+
 	producer, err := newProducer(filename)
 	if err != nil {
 		return nil, err
 	}
+
+	deleteURLProducer, err := newProducer(deletedURLsFilename)
+	if err != nil {
+		return nil, err
+	}
+
 	return &AppRepoInmem{
-		urls:     urls,
-		mu:       sync.RWMutex{},
-		producer: producer,
+		urls:              urls,
+		mu:                sync.RWMutex{},
+		producer:          producer,
+		deleteURLProducer: deleteURLProducer,
 	}, nil
 }
 
+// GetOrCreateURL get saved URL or creates new URL and save it in file.
 func (ari *AppRepoInmem) GetOrCreateURL(id, rawURL string, userID uint) (*app.URL, error) {
 	ari.mu.Lock()
 	defer ari.mu.Unlock()
@@ -62,6 +97,7 @@ func (ari *AppRepoInmem) GetOrCreateURL(id, rawURL string, userID uint) (*app.UR
 	return url, nil
 }
 
+// GetURL get URL with ID.
 func (ari *AppRepoInmem) GetURL(id string) (*app.URL, error) {
 	ari.mu.RLock()
 	defer ari.mu.RUnlock()
@@ -73,6 +109,7 @@ func (ari *AppRepoInmem) GetURL(id string) (*app.URL, error) {
 	return nil, ErrURLNotFound
 }
 
+// CheckIDExistence check URL ID existence.
 func (ari *AppRepoInmem) CheckIDExistence(id string) (bool, error) {
 	ari.mu.RLock()
 	defer ari.mu.RUnlock()
@@ -84,10 +121,20 @@ func (ari *AppRepoInmem) CheckIDExistence(id string) (bool, error) {
 	return false, nil
 }
 
+// Close finishes working with the file.
 func (ari *AppRepoInmem) Close() error {
-	return ari.producer.close()
+	if ari.producer != nil {
+		return ari.producer.close()
+	}
+
+	if ari.deleteURLProducer != nil {
+		ari.deleteURLProducer.close()
+	}
+
+	return nil
 }
 
+// GetOrCreateURLs gets created URLs and saves new URLs and returns them.
 func (ari *AppRepoInmem) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error) {
 	ari.mu.Lock()
 	defer ari.mu.Unlock()
@@ -112,6 +159,7 @@ func (ari *AppRepoInmem) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error) {
 	return urls, nil
 }
 
+// GetUserURLs gets user URLs.
 func (ari *AppRepoInmem) GetUserURLs(userID uint) ([]*app.URL, error) {
 	ari.mu.RLock()
 	defer ari.mu.RUnlock()
@@ -126,6 +174,7 @@ func (ari *AppRepoInmem) GetUserURLs(userID uint) ([]*app.URL, error) {
 	return userURLs, nil
 }
 
+// DeleteUserURLs delete user URLs.
 func (ari *AppRepoInmem) DeleteUserURLs(urls []*app.URL) error {
 	ari.mu.Lock()
 	defer ari.mu.Unlock()
@@ -134,6 +183,12 @@ func (ari *AppRepoInmem) DeleteUserURLs(urls []*app.URL) error {
 		for _, ariURL := range ari.urls {
 			if url.ID == ariURL.ID && url.UserID == ariURL.UserID {
 				ariURL.IsDeleted = true
+
+				if ari.deleteURLProducer != nil {
+					ari.deleteURLProducer.writeURL(url)
+				}
+
+				continue
 			}
 		}
 	}
