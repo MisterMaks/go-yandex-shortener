@@ -49,6 +49,30 @@ const (
 	AddrKey   string = "addr"
 )
 
+var buildVersion string
+var buildDate string
+var buildCommit string
+
+func printBuildInfo() {
+	if buildVersion == "" {
+		fmt.Println("Build version: N/A")
+	} else {
+		fmt.Println("Build version:", buildVersion)
+	}
+
+	if buildDate == "" {
+		fmt.Println("Build date: N/A")
+	} else {
+		fmt.Println("Build date:", buildDate)
+	}
+
+	if buildCommit == "" {
+		fmt.Println("Build commit: N/A")
+	} else {
+		fmt.Println("Build commit:", buildCommit)
+	}
+}
+
 func migrate(dsn string) error {
 	db, err := goose.OpenDBWithDriver("postgres", dsn)
 	if err != nil {
@@ -136,6 +160,8 @@ func connectPostgres(dsn string) (*sql.DB, error) {
 }
 
 func main() {
+	printBuildInfo()
+
 	config := &Config{}
 	err := config.parseFlags()
 	if err != nil {
