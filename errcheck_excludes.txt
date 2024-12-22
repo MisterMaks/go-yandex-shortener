@@ -1,0 +1,2 @@
+(net/http.ResponseWriter).Write
+(*database/sql.Rows).Close

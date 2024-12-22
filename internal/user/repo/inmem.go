@@ -29,7 +29,9 @@ func NewUserRepoInmem(filename string) (*UserRepoInmem, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer consumer.close()
+	if err = consumer.close(); err != nil {
+		return nil, err
+	}
 	users, err := consumer.readUsers()
 	if err != nil {
 		return nil, err
@@ -73,7 +75,10 @@ func (uri *UserRepoInmem) CreateUser() (*user.User, error) {
 	uri.users = append(uri.users, u)
 
 	if uri.producer != nil {
-		uri.producer.writeUser(u)
+		err := uri.producer.writeUser(u)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return u, nil

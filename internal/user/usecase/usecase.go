@@ -98,14 +98,18 @@ func (uu *UserUsecase) AuthenticateOrRegister(h http.Handler) http.Handler {
 		ctxLogger := logger.GetContextLogger(r.Context())
 
 		cookie, err := r.Cookie(AccessTokenKey)
+
+		var u *user.User
+		var accessToken string
+
 		if err != nil {
-			u, err := uu.CreateUser()
+			u, err = uu.CreateUser()
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
 
-			accessToken, err := uu.buildJWTString(u.ID)
+			accessToken, err = uu.buildJWTString(u.ID)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
@@ -125,7 +129,7 @@ func (uu *UserUsecase) AuthenticateOrRegister(h http.Handler) http.Handler {
 		value := cookie.Value
 		userID, err := uu.getUserID(value)
 		if err != nil {
-			u, err := uu.CreateUser()
+			u, err = uu.CreateUser()
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return

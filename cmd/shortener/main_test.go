@@ -94,7 +94,10 @@ func TestRouter(t *testing.T) {
 	u, err := url.ParseRequestURI(ResultAddrPrefix)
 	require.NoError(t, err)
 
-	ts := httptest.NewServer(shortenerRouter(appHandler, u, middlewares))
+	r, err := shortenerRouter(appHandler, u, middlewares)
+	require.NoError(t, err)
+
+	ts := httptest.NewServer(r)
 	defer ts.Close()
 	client := ts.Client()
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
@@ -201,8 +204,11 @@ func TestRouter(t *testing.T) {
 		},
 	}
 
+	var resp *http.Response
+	var respBody []byte
+
 	for _, tt := range testTable {
-		resp, err := testRequest(
+		resp, err = testRequest(
 			t,
 			ts,
 			tt.request.method, tt.request.path, tt.request.contentType,
@@ -210,10 +216,11 @@ func TestRouter(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		respBody, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		respBody, err = io.ReadAll(resp.Body)
 		require.NoError(t, err)
 		respBodyStr := string(respBody)
+		err = resp.Body.Close()
+		require.NoError(t, err)
 
 		assert.Equal(t, tt.want.statusCode, resp.StatusCode)
 		if resp.StatusCode == http.StatusCreated {

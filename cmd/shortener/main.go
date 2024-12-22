@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -87,7 +88,14 @@ func shortenerRouter(
 	appHandler AppHandlerInterface,
 	baseURL *url.URL,
 	middlewares *Middlewares,
-) chi.Router {
+) (chi.Router, error) {
+	if baseURL == nil {
+		return nil, fmt.Errorf("baseURL == nil")
+	}
+	if middlewares == nil {
+		return nil, fmt.Errorf("middlewares == nil")
+	}
+
 	r := chi.NewRouter()
 	r.Use(middlewares.RequestLogger)
 
@@ -109,7 +117,8 @@ func shortenerRouter(
 		r.Get(`/`, appHandler.APIGetUserURLs)
 		r.Delete(`/`, appHandler.APIDeleteUserURLs)
 	})
-	return r
+
+	return r, nil
 }
 
 func connectPostgres(dsn string) (*sql.DB, error) {
@@ -148,28 +157,59 @@ func main() {
 			zap.Error(err),
 		)
 	}
-	defer db.Close()
+	defer func() {
+		err = db.Close()
+		if err != nil {
+			logger.Log.Fatal("Failed to close Postgres",
+				zap.Error(err),
+			)
+		}
+	}()
 
 	var appRepo appUsecaseInternal.AppRepoInterface
+	var appRepoInmem *appRepoInternal.AppRepoInmem
+	var appRepoPostgres *appRepoInternal.AppRepoPostgres
+
 	var userRepo userUsecaseInternal.UserRepoInterface
+	var userRepoInmem *userRepoInternal.UserRepoInmem
+	var userRepoPostgres *userRepoInternal.UserRepoPostgres
+
 	switch config.DatabaseDSN {
 	case "":
-		appRepoInmem, err := appRepoInternal.NewAppRepoInmem(config.FileStoragePath, DeletedURLsFileStoragePath)
+		appRepoInmem, err = appRepoInternal.NewAppRepoInmem(config.FileStoragePath, DeletedURLsFileStoragePath)
 		if err != nil {
 			logger.Log.Fatal("Failed to create appRepoInmem",
 				zap.Error(err),
 			)
 		}
-		defer appRepoInmem.Close()
+
+		defer func() {
+			err = appRepoInmem.Close()
+			if err != nil {
+				logger.Log.Fatal("Failed to close appRepoInMem",
+					zap.Error(err),
+				)
+			}
+		}()
+
 		appRepo = appRepoInmem
 
-		userRepoInmem, err := userRepoInternal.NewUserRepoInmem(UsersFileStoragePath)
+		userRepoInmem, err = userRepoInternal.NewUserRepoInmem(UsersFileStoragePath)
 		if err != nil {
 			logger.Log.Fatal("Failed to create userRepoInmem",
 				zap.Error(err),
 			)
 		}
-		defer userRepoInmem.Close()
+
+		defer func() {
+			err = userRepoInmem.Close()
+			if err != nil {
+				logger.Log.Fatal("Failed to close userRepoInmem",
+					zap.Error(err),
+				)
+			}
+		}()
+
 		userRepo = userRepoInmem
 	default:
 		logger.Log.Info("Applying migrations")
@@ -180,7 +220,7 @@ func main() {
 			)
 		}
 
-		appRepoPostgres, err := appRepoInternal.NewAppRepoPostgres(db)
+		appRepoPostgres, err = appRepoInternal.NewAppRepoPostgres(db)
 		if err != nil {
 			logger.Log.Fatal("Failed to create appRepoPostgres",
 				zap.Error(err),
@@ -188,7 +228,7 @@ func main() {
 		}
 		appRepo = appRepoPostgres
 
-		userRepoPostgres, err := userRepoInternal.NewUserRepoPostgres(db)
+		userRepoPostgres, err = userRepoInternal.NewUserRepoPostgres(db)
 		if err != nil {
 			logger.Log.Fatal("Failed to create userRepoPostgres",
 				zap.Error(err),
@@ -212,7 +252,15 @@ func main() {
 			zap.Error(err),
 		)
 	}
-	defer appUsecase.Close()
+
+	defer func() {
+		err = appUsecase.Close()
+		if err != nil {
+			logger.Log.Fatal("Failed to close userRepoInmem",
+				zap.Error(err),
+			)
+		}
+	}()
 
 	userUsecase, err := userUsecaseInternal.NewUserUsecase(
 		userRepo,
@@ -241,7 +289,12 @@ func main() {
 		Authenticate:           userUsecase.Authenticate,
 	}
 
-	r := shortenerRouter(appHandler, u, middlewares)
+	r, err := shortenerRouter(appHandler, u, middlewares)
+	if err != nil {
+		logger.Log.Fatal("Failed to create router",
+			zap.Error(err),
+		)
+	}
 
 	logger.Log.Info("Server running",
 		zap.String(AddrKey, config.ServerAddress),

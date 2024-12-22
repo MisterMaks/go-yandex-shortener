@@ -5,6 +5,9 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/MisterMaks/go-yandex-shortener/internal/logger"
+	"go.uber.org/zap"
 )
 
 // Used constants.
@@ -89,6 +92,8 @@ func (c *compressReader) Close() error {
 // GzipMiddleware middleware for zip data in response and unzip data from request.
 func GzipMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctxLogger := logger.GetContextLogger(r.Context())
+
 		contentType := r.Header.Get(ContentTypeKey)
 		if !(strings.Contains(contentType, TextHTTPKey) || strings.Contains(contentType, ApplicationJSONKey) || strings.Contains(contentType, "application/x-gzip")) {
 			h.ServeHTTP(w, r)
@@ -108,7 +113,10 @@ func GzipMiddleware(h http.Handler) http.Handler {
 			// меняем оригинальный http.ResponseWriter на новый
 			ow = cw
 			// не забываем отправить клиенту все сжатые данные после завершения middleware
-			defer cw.Close()
+			defer func() {
+				err := cw.Close()
+				ctxLogger.Warn("Failed to close compressWriter", zap.Error(err))
+			}()
 		}
 
 		// проверяем, что клиент отправил серверу сжатые данные в формате gzip
@@ -123,7 +131,12 @@ func GzipMiddleware(h http.Handler) http.Handler {
 			}
 			// меняем тело запроса на новое
 			r.Body = cr
-			defer cr.Close()
+			defer func() {
+				err = cr.Close()
+				if err != nil {
+					ctxLogger.Warn("Failed to close compressReader", zap.Error(err))
+				}
+			}()
 		}
 
 		// передаём управление хендлеру

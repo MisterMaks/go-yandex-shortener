@@ -31,25 +31,29 @@ func NewAppRepoInmem(filename string, deletedURLsFilename string) (*AppRepoInmem
 		}, nil
 	}
 
-	consumer, err := newConsumer(filename)
+	c, err := newConsumer(filename)
 	if err != nil {
 		return nil, err
 	}
-	urls, err := consumer.readURLs()
+	urls, err := c.readURLs()
 	if err != nil {
 		return nil, err
 	}
-	consumer.close()
+	if err = c.close(); err != nil {
+		return nil, err
+	}
 
-	consumer, err = newConsumer(deletedURLsFilename)
+	c, err = newConsumer(deletedURLsFilename)
 	if err != nil {
 		return nil, err
 	}
-	deletedURLs, err := consumer.readURLs()
+	deletedURLs, err := c.readURLs()
 	if err != nil {
 		return nil, err
 	}
-	consumer.close()
+	if err = c.close(); err != nil {
+		return nil, err
+	}
 
 	for _, deletedURL := range deletedURLs {
 		for _, url := range urls {
@@ -60,7 +64,7 @@ func NewAppRepoInmem(filename string, deletedURLsFilename string) (*AppRepoInmem
 		}
 	}
 
-	producer, err := newProducer(filename)
+	p, err := newProducer(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +77,7 @@ func NewAppRepoInmem(filename string, deletedURLsFilename string) (*AppRepoInmem
 	return &AppRepoInmem{
 		urls:              urls,
 		mu:                sync.RWMutex{},
-		producer:          producer,
+		producer:          p,
 		deleteURLProducer: deleteURLProducer,
 	}, nil
 }
@@ -91,7 +95,9 @@ func (ari *AppRepoInmem) GetOrCreateURL(id, rawURL string, userID uint) (*app.UR
 	ari.urls = append(ari.urls, url)
 
 	if ari.producer != nil {
-		ari.producer.writeURL(url)
+		if err := ari.producer.writeURL(url); err != nil {
+			return nil, err
+		}
 	}
 
 	return url, nil
@@ -128,7 +134,7 @@ func (ari *AppRepoInmem) Close() error {
 	}
 
 	if ari.deleteURLProducer != nil {
-		ari.deleteURLProducer.close()
+		return ari.deleteURLProducer.close()
 	}
 
 	return nil
@@ -148,11 +154,13 @@ func (ari *AppRepoInmem) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error) {
 			}
 		}
 
-		url := &app.URL{ID: url.ID, URL: url.URL, UserID: url.UserID}
+		url = &app.URL{ID: url.ID, URL: url.URL, UserID: url.UserID}
 		ari.urls = append(ari.urls, url)
 
 		if ari.producer != nil {
-			ari.producer.writeURL(url)
+			if err := ari.producer.writeURL(url); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -185,7 +193,9 @@ func (ari *AppRepoInmem) DeleteUserURLs(urls []*app.URL) error {
 				ariURL.IsDeleted = true
 
 				if ari.deleteURLProducer != nil {
-					ari.deleteURLProducer.writeURL(url)
+					if err := ari.deleteURLProducer.writeURL(url); err != nil {
+						return err
+					}
 				}
 
 				continue
