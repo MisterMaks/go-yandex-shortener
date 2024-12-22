@@ -42,3 +42,15 @@ swagger:
 godoc:
 	@echo "-- running godoc server"
 	godoc -http=:8000
+
+build-staticlint:
+	@echo "-- building staticlint"
+	go build -o ./cmd/staticlint/staticlint ./cmd/staticlint
+
+run-staticlint:
+	@echo "-- running staticlint"
+	./cmd/staticlint/staticlint
+
+test-staticlint:
+	@echo "-- testing staticlint"
+	go test ./cmd/staticlint/
