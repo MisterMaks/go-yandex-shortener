@@ -7,6 +7,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
+// ErrCheckAnalyzer checks for unchecked errors
 var ErrCheckAnalyzer = &analysis.Analyzer{
 	Name: "errcheckanalyzer",
 	Doc:  "check for unchecked errors",

@@ -30,10 +30,10 @@ func NewUserRepoInmem(filename string) (*UserRepoInmem, error) {
 		return nil, err
 	}
 	users, err := consumer.readUsers()
-	if err = consumer.close(); err != nil {
+	if err != nil {
 		return nil, err
 	}
-	if err != nil {
+	if err = consumer.close(); err != nil {
 		return nil, err
 	}
 	producer, err := newProducer(filename)
