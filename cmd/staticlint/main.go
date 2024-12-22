@@ -15,9 +15,7 @@ import (
 )
 
 func main() {
-	mychecks := make([]*analysis.Analyzer, 0, 4+len(staticcheck.Analyzers)+2+2+1)
-
-	mychecks = []*analysis.Analyzer{
+	mychecks := []*analysis.Analyzer{
 		printf.Analyzer,    // check consistency of Printf format strings and arguments
 		shadow.Analyzer,    // check for possible unintended shadowing of variables
 		structtag.Analyzer, // checks struct field tags are well formed
