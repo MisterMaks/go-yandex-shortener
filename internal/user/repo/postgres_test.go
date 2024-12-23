@@ -31,7 +31,7 @@ func downMigrations(dsn string) error {
 	}
 	defer db.Close()
 	ctx := context.Background()
-	return goose.RunContext(ctx, "down", db, "../../../migrations/")
+	return goose.RunContext(ctx, "down-to", db, "../../../migrations/", "0")
 }
 
 func connectPostgres(dsn string) (*sql.DB, error) {
@@ -47,7 +47,7 @@ func connectPostgres(dsn string) (*sql.DB, error) {
 }
 
 func newTestEnvironment(dsn string, t *testing.T) *TestEnvironment {
-	if testing.Short() {
+	if testing.Short() || DSN == "" {
 		t.Skip()
 	}
 

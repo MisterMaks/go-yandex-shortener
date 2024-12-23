@@ -49,7 +49,7 @@ func connectPostgres(dsn string) (*sql.DB, error) {
 }
 
 func newTestEnvironment(dsn string, t *testing.T) *TestEnvironment {
-	if testing.Short() {
+	if testing.Short() || DSN == "" {
 		t.Skip()
 	}
 
@@ -117,7 +117,7 @@ func TestAppRepoPostgres_GetOrCreateURL(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, testURL, actualURL)
 
-	actualURL, err = r.GetOrCreateURL("1", "https://test2.ru", user2.ID)
+	_, err = r.GetOrCreateURL("1", "https://test2.ru", user2.ID)
 	require.Error(t, err)
 }
 
@@ -147,7 +147,7 @@ func TestAppRepoPostgres_GetURL(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, testURL, actualURL)
 
-	actualURL, err = r.GetURL("2")
+	_, err = r.GetURL("2")
 	require.Error(t, err)
 }
 
