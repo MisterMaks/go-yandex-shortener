@@ -54,3 +54,8 @@ run-staticlint:
 test-staticlint:
 	@echo "-- testing staticlint"
 	go test ./cmd/staticlint/
+
+.PHONY: unit-test
+unit-test:
+	@echo "-- unit testing"
+	go test ./... -short
