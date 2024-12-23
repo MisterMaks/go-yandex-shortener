@@ -33,9 +33,9 @@ RETURNING url_id, user_id;`
 
 // GetURL get URL from DB.
 func (arp *AppRepoPostgres) GetURL(id string) (*app.URL, error) {
-	query := `SELECT url, url_id, is_deleted FROM url WHERE url_id = $1;`
+	query := `SELECT url, url_id, user_id, is_deleted FROM url WHERE url_id = $1;`
 	url := &app.URL{}
-	err := arp.db.QueryRow(query, id).Scan(&url.URL, &url.ID, &url.IsDeleted)
+	err := arp.db.QueryRow(query, id).Scan(&url.URL, &url.ID, &url.UserID, &url.IsDeleted)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ RETURNING url, url_id, user_id;`
 
 // GetUserURLs get user URLs from DB.
 func (arp *AppRepoPostgres) GetUserURLs(userID uint) ([]*app.URL, error) {
-	query := `SELECT url, url_id FROM url WHERE user_id = $1;`
+	query := `SELECT url, url_id, user_id, is_deleted FROM url WHERE user_id = $1;`
 
 	rows, err := arp.db.Query(query, userID)
 	if err != nil {
@@ -118,14 +118,15 @@ func (arp *AppRepoPostgres) GetUserURLs(userID uint) ([]*app.URL, error) {
 	urls := []*app.URL{}
 	for rows.Next() {
 		var (
-			id  string
-			url string
+			id        string
+			url       string
+			isDeleted bool
 		)
-		err = rows.Scan(&url, &id)
+		err = rows.Scan(&url, &id, &userID, &isDeleted)
 		if err != nil {
 			return nil, err
 		}
-		urls = append(urls, &app.URL{ID: id, URL: url})
+		urls = append(urls, &app.URL{ID: id, URL: url, UserID: userID, IsDeleted: isDeleted})
 	}
 
 	err = rows.Err()

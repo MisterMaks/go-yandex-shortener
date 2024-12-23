@@ -45,11 +45,11 @@ godoc:
 
 build-staticlint:
 	@echo "-- building staticlint"
-	go build -o ./cmd/staticlint/staticlint ./cmd/staticlint
+	go build -o ./bin/staticlint ./cmd/staticlint
 
 run-staticlint:
 	@echo "-- running staticlint"
-	./cmd/staticlint/staticlint
+	./bin/staticlint -test=false -errcheck.exclude errcheck_excludes.txt ./...
 
 test-staticlint:
 	@echo "-- testing staticlint"
