@@ -250,9 +250,9 @@ func (au *AppUsecase) SendDeleteUserURLsInChan(userID uint, urlIDs []string) {
 	go func() {
 		for _, urlID := range urlIDs {
 			select {
-			case au.deleteURLsChan <- &app.URL{ID: urlID, UserID: userID}:
 			case <-au.doneCh:
 				return
+			case au.deleteURLsChan <- &app.URL{ID: urlID, UserID: userID}:
 			}
 		}
 	}()
@@ -282,13 +282,28 @@ func (au *AppUsecase) deleteUserURLs() {
 				continue
 			}
 			urls = urls[:0]
+		case <-au.doneCh:
+			if len(urls) == 0 {
+				return
+			}
+			logger.Debug("Deleting user URLs",
+				zap.Any("urls", urls),
+			)
+			err := au.AppRepo.DeleteUserURLs(urls)
+			if err != nil {
+				logger.Error("Failed to delete user URLs",
+					zap.Error(err),
+				)
+				continue
+			}
+			urls = urls[:0]
+			return
 		}
 	}
 }
 
 // Close closing channels and stop executing requests/tasks.
 func (au *AppUsecase) Close() error {
-	close(au.deleteURLsChan)
 	close(au.doneCh)
 	return nil
 }
