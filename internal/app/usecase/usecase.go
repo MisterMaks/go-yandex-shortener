@@ -296,7 +296,6 @@ func (au *AppUsecase) deleteUserURLs() {
 				)
 				continue
 			}
-			urls = urls[:0]
 			return
 		}
 	}
