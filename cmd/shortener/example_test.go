@@ -19,7 +19,7 @@ import (
 	"github.com/golang/mock/gomock"
 )
 
-func newExampleServer(m *mocks.MockAppUsecaseInterface) *httptest.Server {
+func newExampleServer(m *mocks.MockAppUsecaseInterface) (*httptest.Server, error) {
 	appHandler := appDeliveryInternal.NewAppHandler(m)
 
 	middlewares := &Middlewares{
@@ -39,16 +39,24 @@ func newExampleServer(m *mocks.MockAppUsecaseInterface) *httptest.Server {
 		},
 	}
 
-	u, _ := url.ParseRequestURI(ResultAddrPrefix)
+	u, err := url.ParseRequestURI(ResultAddrPrefix)
+	if err != nil {
+		return nil, err
+	}
 
-	ts := httptest.NewServer(shortenerRouter(appHandler, u, middlewares))
+	r, err := shortenerRouter(appHandler, u, middlewares)
+	if err != nil {
+		return nil, err
+	}
+
+	ts := httptest.NewServer(r)
 
 	client := ts.Client()
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		return http.ErrUseLastResponse
 	}
 
-	return ts
+	return ts, nil
 }
 
 func newExampleMock() *mocks.MockAppUsecaseInterface {
@@ -86,27 +94,68 @@ func newExampleMock() *mocks.MockAppUsecaseInterface {
 func Example() {
 	// preparing mocks and server
 	m := newExampleMock()
-	ts := newExampleServer(m)
+	ts, err := newExampleServer(m)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
 	defer ts.Close()
+
 	serverAddr := ts.URL
 
 	fmt.Println("Get or create URL:")
 	getOrCreateURLURL := serverAddr + "/"
-	req, _ := http.NewRequest(http.MethodPost, getOrCreateURLURL, bytes.NewReader([]byte(TestValidURL)))
+	req, err := http.NewRequest(http.MethodPost, getOrCreateURLURL, bytes.NewReader([]byte(TestValidURL)))
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
 	req.Header.Set(ContentTypeKey, TextPlainKey)
-	resp, _ := ts.Client().Do(req)
-	respBody, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	resp, err := ts.Client().Do(req)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	if err = resp.Body.Close(); err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
 	respBodyStr := string(respBody)
 	fmt.Println(resp.StatusCode)
 	fmt.Println(respBodyStr)
 
 	fmt.Println("Redirect to original URL:")
 	redirectURL := serverAddr + "/" + TestID
-	req, _ = http.NewRequest(http.MethodGet, redirectURL, bytes.NewReader(nil))
-	resp, _ = ts.Client().Do(req)
-	respBody, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	req, err = http.NewRequest(http.MethodGet, redirectURL, bytes.NewReader(nil))
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	resp, err = ts.Client().Do(req)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	respBody, err = io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	if err = resp.Body.Close(); err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
 	respBodyStr, _ = strings.CutSuffix(string(respBody), "\n\n")
 	fmt.Println(resp.StatusCode)
 	fmt.Println(respBodyStr)
@@ -114,12 +163,29 @@ func Example() {
 	fmt.Println("Get or create URL in JSON format:")
 	apiGetOrCreateURLURL := serverAddr + "/api/shorten"
 	bodyJSON := []byte(`{"url": "` + TestValidURL + `"}`)
-	req, _ = http.NewRequest(http.MethodPost, apiGetOrCreateURLURL, bytes.NewReader(bodyJSON))
+	req, err = http.NewRequest(http.MethodPost, apiGetOrCreateURLURL, bytes.NewReader(bodyJSON))
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
 	req.Header.Set(ContentTypeKey, appDeliveryInternal.ApplicationJSONKey)
-	resp, err := ts.Client().Do(req)
-	_ = err
-	respBody, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	resp, err = ts.Client().Do(req)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	respBody, err = io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	if err = resp.Body.Close(); err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
 	respBodyStr = string(respBody)
 	fmt.Println(resp.StatusCode)
 	fmt.Println(respBodyStr)
@@ -127,21 +193,57 @@ func Example() {
 	fmt.Println("Get or create URLs in JSON format:")
 	apiGetOrCreateURLsURL := serverAddr + "/api/shorten/batch"
 	bodyJSON = []byte(`[{"correlation_id": "` + TestID + `", "original_url": "` + TestValidURL + `"}]`)
-	req, _ = http.NewRequest(http.MethodPost, apiGetOrCreateURLsURL, bytes.NewReader(bodyJSON))
+	req, err = http.NewRequest(http.MethodPost, apiGetOrCreateURLsURL, bytes.NewReader(bodyJSON))
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
 	req.Header.Set(ContentTypeKey, appDeliveryInternal.ApplicationJSONKey)
-	resp, _ = ts.Client().Do(req)
-	respBody, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	resp, err = ts.Client().Do(req)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	respBody, err = io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	if err = resp.Body.Close(); err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
 	respBodyStr = string(respBody)
 	fmt.Println(resp.StatusCode)
 	fmt.Println(respBodyStr)
 
 	fmt.Println("Get user URLs in JSON format:")
 	apiGetUserURLsURL := serverAddr + "/api/user/urls"
-	req, _ = http.NewRequest(http.MethodGet, apiGetUserURLsURL, bytes.NewReader(nil))
-	resp, _ = ts.Client().Do(req)
-	respBody, _ = io.ReadAll(resp.Body)
-	resp.Body.Close()
+	req, err = http.NewRequest(http.MethodGet, apiGetUserURLsURL, bytes.NewReader(nil))
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	resp, err = ts.Client().Do(req)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	respBody, err = io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	if err = resp.Body.Close(); err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
 	respBodyStr = string(respBody)
 	fmt.Println(resp.StatusCode)
 	fmt.Println(respBodyStr)
@@ -149,16 +251,42 @@ func Example() {
 	fmt.Println("Delete user URLs:")
 	apiDeleteUserURLsURL := serverAddr + "/api/user/urls"
 	bodyJSON = []byte(`["` + TestID + `"]`)
-	req, _ = http.NewRequest(http.MethodDelete, apiDeleteUserURLsURL, bytes.NewReader(bodyJSON))
-	resp, _ = ts.Client().Do(req)
-	resp.Body.Close()
+	req, err = http.NewRequest(http.MethodDelete, apiDeleteUserURLsURL, bytes.NewReader(bodyJSON))
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	resp, err = ts.Client().Do(req)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	if err = resp.Body.Close(); err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
 	fmt.Println(resp.StatusCode)
 
 	fmt.Println("Ping DB:")
 	pingURL := serverAddr + "/ping"
-	req, _ = http.NewRequest(http.MethodGet, pingURL, bytes.NewReader(nil))
-	resp, _ = ts.Client().Do(req)
-	resp.Body.Close()
+	req, err = http.NewRequest(http.MethodGet, pingURL, bytes.NewReader(nil))
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	resp, err = ts.Client().Do(req)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	if err = resp.Body.Close(); err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
 	fmt.Println(resp.StatusCode)
 
 	// Output:

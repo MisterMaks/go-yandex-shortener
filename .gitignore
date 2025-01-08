@@ -26,3 +26,5 @@ vendor/
 cmd/client/
 
 local_envs.txt
+
+bin/

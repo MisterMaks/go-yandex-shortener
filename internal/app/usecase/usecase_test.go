@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/MisterMaks/go-yandex-shortener/internal/app/usecase/mocks"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -451,4 +453,168 @@ func TestAppUsecase_GenerateShortURL(t *testing.T) {
 			assert.Equal(t, tt.want, shortURL)
 		})
 	}
+}
+
+func TestAppUsecase_GetOrCreateURLs(t *testing.T) {
+	testRequestBatchURLs := []app.RequestBatchURL{
+		{CorrelationID: "1", OriginalURL: "https://test.ru"},
+		{CorrelationID: "2", OriginalURL: "https://test2.ru"},
+	}
+	testUserID := uint(1)
+
+	// создаём контроллер
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// создаём объект-заглушку
+	m := mocks.NewMockAppRepoInterface(ctrl)
+	m.EXPECT().GetOrCreateURLs(gomock.Any()).Return([]*app.URL{
+		{ID: "11", URL: "https://test.ru", UserID: testUserID, IsDeleted: false},
+		{ID: "22", URL: "https://test2.ru", UserID: testUserID, IsDeleted: false},
+	}, nil).AnyTimes()
+	m.EXPECT().CheckIDExistence(gomock.Any()).Return(false, nil).AnyTimes()
+
+	au := &AppUsecase{
+		AppRepo:                       m,
+		CountRegenerationsForLengthID: 1,
+		LengthID:                      1,
+		MaxLengthID:                   1,
+		BaseURL:                       "http://example.com/",
+	}
+
+	urls, err := au.GetOrCreateURLs(testRequestBatchURLs, testUserID)
+
+	require.NoError(t, err)
+	assert.Equal(t, []app.ResponseBatchURL{
+		{CorrelationID: "1", ShortURL: "http://example.com/11"},
+		{CorrelationID: "2", ShortURL: "http://example.com/22"},
+	}, urls)
+}
+
+func TestAppUsecase_GetUserURLs(t *testing.T) {
+	testUserID := uint(1)
+
+	// создаём контроллер
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// создаём объект-заглушку
+	m := mocks.NewMockAppRepoInterface(ctrl)
+	m.EXPECT().GetUserURLs(testUserID).Return([]*app.URL{
+		{ID: "11", URL: "https://test.ru", UserID: testUserID, IsDeleted: false},
+		{ID: "22", URL: "https://test2.ru", UserID: testUserID, IsDeleted: false},
+	}, nil).AnyTimes()
+
+	au := &AppUsecase{
+		AppRepo:                       m,
+		CountRegenerationsForLengthID: 1,
+		LengthID:                      1,
+		MaxLengthID:                   1,
+		BaseURL:                       "http://example.com/",
+	}
+
+	urls, err := au.GetUserURLs(testUserID)
+
+	require.NoError(t, err)
+	assert.Equal(t, []app.ResponseUserURL{
+		{OriginalURL: "https://test.ru", ShortURL: "http://example.com/11"},
+		{OriginalURL: "https://test2.ru", ShortURL: "http://example.com/22"},
+	}, urls)
+}
+
+func TestAppUsecase_SendDeleteUserURLsInChan(t *testing.T) {
+	au := &AppUsecase{
+		AppRepo:                       nil,
+		BaseURL:                       "",
+		CountRegenerationsForLengthID: 1,
+		LengthID:                      1,
+		MaxLengthID:                   1,
+		db:                            nil,
+		deleteURLsChan:                make(chan *app.URL, 1),
+		deleteURLsTicker:              time.NewTicker(5 * time.Millisecond),
+		doneCh:                        make(chan struct{}),
+	}
+
+	testURL := &app.URL{ID: TestURLID, UserID: 1}
+
+	au.SendDeleteUserURLsInChan(testURL.UserID, []string{testURL.ID})
+
+	actualURL := <-au.deleteURLsChan
+	assert.Equal(t, testURL, actualURL)
+
+	err := au.Close()
+	require.NoError(t, err)
+
+	time.Sleep(time.Millisecond)
+
+	au.SendDeleteUserURLsInChan(testURL.UserID, []string{testURL.ID})
+}
+
+func TestAppUsecase_deleteUserURLs(t *testing.T) {
+	testURL := &app.URL{
+		ID:        "1",
+		URL:       "https://test.ru",
+		UserID:    1,
+		IsDeleted: false,
+	}
+
+	// создаём контроллер
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// создаём объект-заглушку
+	m := mocks.NewMockAppRepoInterface(ctrl)
+	m.EXPECT().DeleteUserURLs([]*app.URL{testURL}).Return(nil).AnyTimes()
+
+	au := &AppUsecase{
+		AppRepo:                       m,
+		BaseURL:                       "",
+		CountRegenerationsForLengthID: 1,
+		LengthID:                      1,
+		MaxLengthID:                   1,
+		db:                            nil,
+		deleteURLsChan:                make(chan *app.URL, 1),
+		deleteURLsTicker:              time.NewTicker(5 * time.Millisecond),
+		doneCh:                        make(chan struct{}),
+	}
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		au.deleteUserURLs()
+	}()
+
+	au.deleteURLsChan <- testURL
+
+	time.Sleep(10 * time.Millisecond)
+
+	au.deleteURLsChan <- testURL
+
+	err := au.Close()
+	require.NoError(t, err)
+
+	time.Sleep(10 * time.Millisecond)
+
+	wg.Wait()
+}
+
+func TestAppUsecase_Close(t *testing.T) {
+	au := &AppUsecase{
+		AppRepo:                       nil,
+		BaseURL:                       "",
+		CountRegenerationsForLengthID: 1,
+		LengthID:                      1,
+		MaxLengthID:                   1,
+		db:                            nil,
+		deleteURLsChan:                make(chan *app.URL, 1),
+		deleteURLsTicker:              time.NewTicker(time.Second),
+		doneCh:                        make(chan struct{}),
+	}
+
+	err := au.Close()
+	require.NoError(t, err)
+
+	_, ok := <-au.doneCh
+	assert.False(t, ok)
 }
