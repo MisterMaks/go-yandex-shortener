@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"fmt"
 	"log"
@@ -13,26 +14,26 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pressly/goose/v3"
-	httpSwagger "github.com/swaggo/http-swagger"
-
 	"github.com/MisterMaks/go-yandex-shortener/api"
 	appDeliveryInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/delivery"
 	appRepoInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/repo"
 	appUsecaseInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/usecase"
+	"github.com/MisterMaks/go-yandex-shortener/internal/cert_creator"
 	"github.com/MisterMaks/go-yandex-shortener/internal/gzip"
 	"github.com/MisterMaks/go-yandex-shortener/internal/logger"
 	userRepoInternal "github.com/MisterMaks/go-yandex-shortener/internal/user/repo"
 	userUsecaseInternal "github.com/MisterMaks/go-yandex-shortener/internal/user/usecase"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
+	httpSwagger "github.com/swaggo/http-swagger"
 	"go.uber.org/zap"
 )
 
 // App constants.
 const (
 	Addr                          string = "localhost:8080"
-	ResultAddrPrefix              string = "http://localhost:8080/"
+	ResultAddrPrefix              string = "localhost:8080"
 	URLsFileStoragePath           string = "/tmp/short-url-db.json"
 	DeletedURLsFileStoragePath    string = "/tmp/deleted-url-db.json"
 	UsersFileStoragePath          string = "/tmp/user-db.json"
@@ -173,7 +174,7 @@ func main() {
 		log.Fatalln("CRITICAL\tFailed to init logger. Error:", err)
 	}
 
-	logger.Log.Info("Config data",
+	logger.Log.Debug("Config data",
 		zap.Any(ConfigKey, config),
 	)
 
@@ -326,7 +327,39 @@ func main() {
 		zap.String(AddrKey, config.ServerAddress),
 	)
 	go func() {
-		err = http.ListenAndServe(config.ServerAddress, r)
+		if config.EnableHTTPS {
+			var certPEMBytes, privateKeyPEMBytes []byte
+
+			certPEMBytes, privateKeyPEMBytes, err = cert_creator.Create()
+			if err != nil {
+				logger.Log.Fatal("Failed to create certificate",
+					zap.Error(err),
+				)
+			}
+
+			var cert tls.Certificate
+			cert, err = tls.X509KeyPair(certPEMBytes, privateKeyPEMBytes)
+			if err != nil {
+				logger.Log.Fatal("Failed to parse a public/private key pair from a pair of PEM encoded data",
+					zap.Error(err),
+				)
+			}
+
+			tlsConfig := &tls.Config{
+				Certificates: []tls.Certificate{cert},
+			}
+
+			server := &http.Server{
+				Addr:      config.ServerAddress,
+				Handler:   r,
+				TLSConfig: tlsConfig,
+			}
+
+			err = server.ListenAndServeTLS("", "")
+		} else {
+			err = http.ListenAndServe(config.ServerAddress, r)
+		}
+
 		if err != nil {
 			logger.Log.Fatal("Failed to start server",
 				zap.Error(err),
