@@ -22,6 +22,7 @@ type Config struct {
 	LogLevel        string `env:"LOG_LEVEL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	DatabaseDSN     string `env:"DATABASE_DSN"`
+	EnableHTTPS     bool   `env:"ENABLE_HTTPS"`
 }
 
 func (c *Config) parseFlags() error {
@@ -30,6 +31,7 @@ func (c *Config) parseFlags() error {
 	flag.StringVar(&c.LogLevel, "l", "", "Log level")
 	flag.StringVar(&c.FileStoragePath, "f", "", "File storage path")
 	flag.StringVar(&c.DatabaseDSN, "d", "", "Database DSN")
+	flag.BoolVar(&c.EnableHTTPS, "s", false, "Enable HTTPS")
 	flag.Parse()
 
 	foundFlagFileStoragePath := false
@@ -65,8 +67,10 @@ func (c *Config) parseFlags() error {
 		return err
 	}
 
-	if !strings.HasPrefix(c.BaseURL, "http://") && !strings.HasPrefix(c.BaseURL, "https://") {
+	if !strings.HasPrefix(c.BaseURL, "http://") && !c.EnableHTTPS {
 		c.BaseURL = "http://" + c.BaseURL
+	} else if !strings.HasPrefix(c.BaseURL, "https://") && c.EnableHTTPS {
+		c.BaseURL = "https://" + c.BaseURL
 	}
 	if !strings.HasSuffix(c.BaseURL, "/") {
 		c.BaseURL += "/"
