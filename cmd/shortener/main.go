@@ -18,7 +18,7 @@ import (
 	appDeliveryInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/delivery"
 	appRepoInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/repo"
 	appUsecaseInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/usecase"
-	"github.com/MisterMaks/go-yandex-shortener/internal/cert_creator"
+	"github.com/MisterMaks/go-yandex-shortener/internal/cert-creator"
 	"github.com/MisterMaks/go-yandex-shortener/internal/gzip"
 	"github.com/MisterMaks/go-yandex-shortener/internal/logger"
 	userRepoInternal "github.com/MisterMaks/go-yandex-shortener/internal/user/repo"

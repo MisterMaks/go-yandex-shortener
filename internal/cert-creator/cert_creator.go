@@ -12,6 +12,7 @@ import (
 	"time"
 )
 
+// Create creates cert PEM and private key PEM in bytes
 func Create() (certPEMBytes, privateKeyPEMBytes []byte, err error) {
 	// создаём шаблон сертификата
 	cert := &x509.Certificate{
