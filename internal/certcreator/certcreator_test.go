@@ -1,4 +1,4 @@
-package cert_creator
+package certcreator
 
 import (
 	"strings"

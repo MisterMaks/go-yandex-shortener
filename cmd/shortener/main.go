@@ -18,7 +18,7 @@ import (
 	appDeliveryInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/delivery"
 	appRepoInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/repo"
 	appUsecaseInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/usecase"
-	"github.com/MisterMaks/go-yandex-shortener/internal/cert-creator"
+	"github.com/MisterMaks/go-yandex-shortener/internal/certcreator"
 	"github.com/MisterMaks/go-yandex-shortener/internal/gzip"
 	"github.com/MisterMaks/go-yandex-shortener/internal/logger"
 	userRepoInternal "github.com/MisterMaks/go-yandex-shortener/internal/user/repo"
@@ -330,7 +330,7 @@ func main() {
 		if config.EnableHTTPS {
 			var certPEMBytes, privateKeyPEMBytes []byte
 
-			certPEMBytes, privateKeyPEMBytes, err = cert_creator.Create()
+			certPEMBytes, privateKeyPEMBytes, err = certcreator.Create()
 			if err != nil {
 				logger.Log.Fatal("Failed to create certificate",
 					zap.Error(err),
