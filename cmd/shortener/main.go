@@ -363,7 +363,7 @@ func main() {
 			err = server.ListenAndServe()
 		}
 
-		if err != nil {
+		if err != nil && err != http.ErrServerClosed {
 			logger.Log.Fatal("Failed to start server",
 				zap.Error(err),
 			)
@@ -373,12 +373,10 @@ func main() {
 	exitChan := make(chan os.Signal, 1)
 	signal.Notify(exitChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	for exitSyg := range exitChan {
-		logger.Log.Info("terminating: via signal", zap.Any("signal", exitSyg))
-		err = server.Shutdown(context.Background())
-		if err != nil {
-			logger.Log.Fatal("Failed to HTTP server shutdown", zap.Error(err))
-		}
-		break
+	exitSyg := <-exitChan
+	logger.Log.Info("terminating: via signal", zap.Any("signal", exitSyg))
+	err = server.Shutdown(context.Background())
+	if err != nil {
+		logger.Log.Fatal("Failed to HTTP server shutdown", zap.Error(err))
 	}
 }
