@@ -163,10 +163,9 @@ func connectPostgres(dsn string) (*sql.DB, error) {
 func main() {
 	printBuildInfo()
 
-	config := &Config{}
-	err := config.parseFlags()
+	config, err := NewConfig()
 	if err != nil {
-		log.Fatalln("CRITICAL\tFailed to parse flags. Error:", err)
+		log.Fatalln("CRITICAL\tFailed to create config. Error:", err)
 	}
 
 	err = logger.Initialize(config.LogLevel)
