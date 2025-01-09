@@ -37,6 +37,7 @@ func newExampleServer(m *mocks.MockAppUsecaseInterface) (*httptest.Server, error
 				h.ServeHTTP(w, r.WithContext(ctx))
 			})
 		},
+		TrustedSubnetMiddleware: func(h http.Handler) http.Handler { return h },
 	}
 
 	u, err := url.ParseRequestURI(ResultAddrPrefix)

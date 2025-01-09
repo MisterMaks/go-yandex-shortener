@@ -99,14 +99,16 @@ type AppHandlerInterface interface {
 	APIGetOrCreateURLs(w http.ResponseWriter, r *http.Request)
 	APIGetUserURLs(w http.ResponseWriter, r *http.Request)
 	APIDeleteUserURLs(w http.ResponseWriter, r *http.Request)
+	APIGetInternalStats(w http.ResponseWriter, r *http.Request)
 }
 
 // Middlewares used middlewares.
 type Middlewares struct {
-	RequestLogger          func(http.Handler) http.Handler
-	GzipMiddleware         func(http.Handler) http.Handler
-	Authenticate           func(http.Handler) http.Handler
-	AuthenticateOrRegister func(http.Handler) http.Handler
+	RequestLogger           func(http.Handler) http.Handler
+	GzipMiddleware          func(http.Handler) http.Handler
+	Authenticate            func(http.Handler) http.Handler
+	AuthenticateOrRegister  func(http.Handler) http.Handler
+	TrustedSubnetMiddleware func(http.Handler) http.Handler
 }
 
 func shortenerRouter(
@@ -141,6 +143,10 @@ func shortenerRouter(
 		r.Use(middlewares.Authenticate)
 		r.Get(`/`, appHandler.APIGetUserURLs)
 		r.Delete(`/`, appHandler.APIDeleteUserURLs)
+	})
+	r.Route(`/api/internal/stats`, func(r chi.Router) {
+		r.Use(middlewares.TrustedSubnetMiddleware)
+		r.Get(`/`, appHandler.APIGetInternalStats)
 	})
 
 	return r, nil
@@ -265,13 +271,26 @@ func main() {
 		userRepo = userRepoPostgres
 	}
 
+	userUsecase, err := userUsecaseInternal.NewUserUsecase(
+		userRepo,
+		SecretKey,
+		TokenExp,
+	)
+	if err != nil {
+		logger.Log.Fatal("Failed to create userUsecase",
+			zap.Error(err),
+		)
+	}
+
 	appUsecase, err := appUsecaseInternal.NewAppUsecase(
 		appRepo,
+		userUsecase,
 		config.BaseURL,
 		CountRegenerationsForLengthID,
 		LengthID,
 		MaxLengthID,
 		db,
+		config.TrustedSubnet,
 		DeleteURLsChanSize,
 		DeleteURLsWaitingTime,
 	)
@@ -290,17 +309,6 @@ func main() {
 		}
 	}()
 
-	userUsecase, err := userUsecaseInternal.NewUserUsecase(
-		userRepo,
-		SecretKey,
-		TokenExp,
-	)
-	if err != nil {
-		logger.Log.Fatal("Failed to create userUsecase",
-			zap.Error(err),
-		)
-	}
-
 	appHandler := appDeliveryInternal.NewAppHandler(appUsecase)
 
 	u, err := url.ParseRequestURI(config.BaseURL)
@@ -311,10 +319,11 @@ func main() {
 	}
 
 	middlewares := &Middlewares{
-		RequestLogger:          logger.RequestLogger,
-		GzipMiddleware:         gzip.GzipMiddleware,
-		AuthenticateOrRegister: userUsecase.AuthenticateOrRegister,
-		Authenticate:           userUsecase.Authenticate,
+		RequestLogger:           logger.RequestLogger,
+		GzipMiddleware:          gzip.GzipMiddleware,
+		AuthenticateOrRegister:  userUsecase.AuthenticateOrRegister,
+		Authenticate:            userUsecase.Authenticate,
+		TrustedSubnetMiddleware: appUsecase.TrustedSubnetMiddleware,
 	}
 
 	r, err := shortenerRouter(appHandler, u, middlewares)

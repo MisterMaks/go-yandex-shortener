@@ -26,6 +26,7 @@ type Config struct {
 	DatabaseDSN     string `env:"DATABASE_DSN" mapstructure:"database_dsn"`
 	EnableHTTPS     bool   `env:"ENABLE_HTTPS" mapstructure:"enable_https"`
 	Config          string `env:"CONFIG"`
+	TrustedSubnet   string `env:"TRUSTED_SUBNET" mapstructure:"trusted_subnet"`
 }
 
 func readConfigFile(c *Config) error {
@@ -58,6 +59,10 @@ func readConfigFile(c *Config) error {
 	if err != nil {
 		return err
 	}
+	err = v.BindPFlag("trusted_subnet", pflag.Lookup("t"))
+	if err != nil {
+		return err
+	}
 
 	v.SetConfigFile(c.Config)
 	v.AutomaticEnv()
@@ -86,6 +91,7 @@ func NewConfig() (*Config, error) {
 	flag.StringVar(&c.DatabaseDSN, "d", "", "Database DSN")
 	flag.BoolVar(&c.EnableHTTPS, "s", false, "Enable HTTPS")
 	flag.StringVar(&c.Config, "c", "", "Config path")
+	flag.StringVar(&c.TrustedSubnet, "t", "", "Trusted subnet")
 	flag.Parse()
 
 	foundFlagFileStoragePath := false

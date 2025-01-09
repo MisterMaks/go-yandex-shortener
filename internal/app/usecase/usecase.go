@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"errors"
 	"math/rand"
+	"net"
+	"net/http"
 	"net/url"
 	"regexp"
 	"time"
@@ -63,11 +65,19 @@ type AppRepoInterface interface {
 	GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error)             // get created or create URLs
 	GetUserURLs(userID uint) ([]*app.URL, error)                     // get user URLs
 	DeleteUserURLs(urls []*app.URL) error                            // delete urls
+	GetCountURLs() (int, error)                                      // get count URLs
+}
+
+// UserUsecaseInterface contains the necessary functions for user usecase.
+type UserUsecaseInterface interface {
+	GetCountUsers() (int, error) // get count users
 }
 
 // AppUsecase business logic struct.
 type AppUsecase struct {
 	AppRepo AppRepoInterface // storage
+
+	UserUsecase UserUsecaseInterface // user usecase
 
 	BaseURL                       string // base URL
 	CountRegenerationsForLengthID uint   // count regenerations for length ID
@@ -75,6 +85,8 @@ type AppUsecase struct {
 	MaxLengthID                   uint   // max length ID
 
 	db *sql.DB
+
+	trustedSubnet *net.IPNet
 
 	deleteURLsChan   chan *app.URL
 	deleteURLsTicker *time.Ticker
@@ -85,9 +97,11 @@ type AppUsecase struct {
 // NewAppUsecase creates *AppUsecase.
 func NewAppUsecase(
 	appRepo AppRepoInterface,
+	userUsecase UserUsecaseInterface,
 	baseURL string,
 	countRegenerationsForLengthID, lengthID, maxLengthID uint,
 	db *sql.DB,
+	trustedSubnetStr string,
 	deleteURLsChanSize uint,
 	deleteURLsWaitingTime time.Duration,
 ) (*AppUsecase, error) {
@@ -108,17 +122,29 @@ func NewAppUsecase(
 		return nil, ErrInvalidBaseURL
 	}
 
+	var trustedSubnet *net.IPNet
+	if trustedSubnetStr != "" {
+		_, trustedSubnet, err = net.ParseCIDR(trustedSubnetStr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	doneCh := make(chan struct{})
 
 	appUsecase := &AppUsecase{
 		AppRepo:                       appRepo,
+		UserUsecase:                   userUsecase,
 		BaseURL:                       baseURL,
 		CountRegenerationsForLengthID: countRegenerationsForLengthID,
 		LengthID:                      lengthID,
 		MaxLengthID:                   maxLengthID,
 		db:                            db,
-		deleteURLsChan:                make(chan *app.URL, deleteURLsChanSize),
-		deleteURLsTicker:              time.NewTicker(deleteURLsWaitingTime),
+
+		trustedSubnet: trustedSubnet,
+
+		deleteURLsChan:   make(chan *app.URL, deleteURLsChanSize),
+		deleteURLsTicker: time.NewTicker(deleteURLsWaitingTime),
 
 		doneCh: doneCh,
 	}
@@ -301,8 +327,50 @@ func (au *AppUsecase) deleteUserURLs() {
 	}
 }
 
+// GetInternalStats get internal stats.
+func (au *AppUsecase) GetInternalStats() (app.InternalStats, error) {
+	countURLs, err := au.AppRepo.GetCountURLs()
+	if err != nil {
+		return app.InternalStats{}, err
+	}
+
+	countUsers, err := au.UserUsecase.GetCountUsers()
+	if err != nil {
+		return app.InternalStats{}, err
+	}
+
+	return app.InternalStats{URLs: countURLs, Users: countUsers}, nil
+}
+
 // Close closing channels and stop executing requests/tasks.
 func (au *AppUsecase) Close() error {
 	close(au.doneCh)
 	return nil
+}
+
+// TrustedSubnetMiddleware is middleware for check trusted ip.
+func (au *AppUsecase) TrustedSubnetMiddleware(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if au.trustedSubnet == nil {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		ipStr := r.Header.Get("X-Real-IP")
+
+		ip := net.ParseIP(ipStr)
+
+		if ip == nil {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		ok := au.trustedSubnet.Contains(ip)
+		if !ok {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		h.ServeHTTP(w, r)
+	})
 }

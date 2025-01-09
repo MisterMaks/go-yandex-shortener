@@ -59,3 +59,25 @@ test-staticlint:
 unit-test:
 	@echo "-- unit testing"
 	go test ./... -short
+
+mockgen-all: mockgen-main mockgen-app-usecase mockgen-app-delivery mockgen-user-usecase
+
+.PHONY: mockgen-main
+mockgen-main:
+	@echo "-- mockgen main"
+	mockgen -destination=cmd/shortener/mocks/main.go -package=mocks -source=cmd/shortener/main.go
+
+.PHONY: mockgen-app-usecase
+mockgen-app-usecase:
+	@echo "-- mockgen app usecase"
+	mockgen -destination=internal/app/usecase/mocks/usecase.go -package=mocks -source=internal/app/usecase/usecase.go
+
+.PHONY: mockgen-app-delivery
+mockgen-app-delivery:
+	@echo "-- mockgen app delivery"
+	mockgen -destination=internal/app/delivery/mocks/http.go -package=mocks -source=internal/app/delivery/http.go
+
+.PHONY: mockgen-user-usecase
+mockgen-user-usecase:
+	@echo "-- mockgen user usecase"
+	mockgen -destination=internal/user/usecase/mocks/usecase.go -package=mocks -source=internal/user/usecase/usecase.go

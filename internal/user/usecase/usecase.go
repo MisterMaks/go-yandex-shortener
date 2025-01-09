@@ -30,6 +30,7 @@ type Claims struct {
 // UserRepoInterface contains the necessary functions for storage.
 type UserRepoInterface interface {
 	CreateUser() (*user.User, error)
+	GetCountUsers() (int, error) // get count users
 }
 
 // UserUsecase business logic struct.
@@ -197,4 +198,9 @@ func GetContextUserID(ctx context.Context) (uint, error) {
 		return 0, fmt.Errorf("no %v", UserIDKey)
 	}
 	return userID, nil
+}
+
+// GetCountUsers get count users.
+func (uu *UserUsecase) GetCountUsers() (int, error) {
+	return uu.UserRepo.GetCountUsers()
 }
