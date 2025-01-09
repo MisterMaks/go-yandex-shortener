@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/MisterMaks/go-yandex-shortener/api"
+	"github.com/MisterMaks/go-yandex-shortener/api/swagger"
 	appDeliveryInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/delivery"
 	appRepoInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/repo"
 	appUsecaseInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/usecase"
@@ -126,8 +126,8 @@ func shortenerRouter(
 	r := chi.NewRouter()
 	r.Use(middlewares.RequestLogger)
 
-	api.SwaggerInfo.Host = baseURL.Host
-	api.SwaggerInfo.Schemes = []string{"http", "https"}
+	swagger.SwaggerInfo.Host = baseURL.Host
+	swagger.SwaggerInfo.Schemes = []string{"http", "https"}
 	r.Get("/swagger/*", httpSwagger.Handler())
 
 	redirectPathPrefix := strings.TrimPrefix(baseURL.Path, "/")

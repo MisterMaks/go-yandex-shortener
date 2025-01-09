@@ -81,3 +81,9 @@ mockgen-app-delivery:
 mockgen-user-usecase:
 	@echo "-- mockgen user usecase"
 	mockgen -destination=internal/user/usecase/mocks/usecase.go -package=mocks -source=internal/user/usecase/usecase.go
+
+.PHONY: protoc
+protoc:
+	@echo "-- compiling .proto file"
+	protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. \
+	--go-grpc_opt=paths=source_relative api/proto/service.proto;
