@@ -48,3 +48,18 @@ func (mr *MockUserRepoInterfaceMockRecorder) CreateUser() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*MockUserRepoInterface)(nil).CreateUser))
 }
+
+// GetCountUsers mocks base method.
+func (m *MockUserRepoInterface) GetCountUsers() (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCountUsers")
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCountUsers indicates an expected call of GetCountUsers.
+func (mr *MockUserRepoInterfaceMockRecorder) GetCountUsers() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCountUsers", reflect.TypeOf((*MockUserRepoInterface)(nil).GetCountUsers))
+}

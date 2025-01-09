@@ -48,6 +48,21 @@ func (mr *MockAppUsecaseInterfaceMockRecorder) GenerateShortURL(id interface{}) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateShortURL", reflect.TypeOf((*MockAppUsecaseInterface)(nil).GenerateShortURL), id)
 }
 
+// GetInternalStats mocks base method.
+func (m *MockAppUsecaseInterface) GetInternalStats() (app.InternalStats, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetInternalStats")
+	ret0, _ := ret[0].(app.InternalStats)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetInternalStats indicates an expected call of GetInternalStats.
+func (mr *MockAppUsecaseInterfaceMockRecorder) GetInternalStats() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInternalStats", reflect.TypeOf((*MockAppUsecaseInterface)(nil).GetInternalStats))
+}
+
 // GetOrCreateURL mocks base method.
 func (m *MockAppUsecaseInterface) GetOrCreateURL(rawURL string, userID uint) (*app.URL, bool, error) {
 	m.ctrl.T.Helper()

@@ -205,3 +205,13 @@ func (ari *AppRepoInmem) DeleteUserURLs(urls []*app.URL) error {
 
 	return nil
 }
+
+// GetCountURLs get count URLs.
+func (ari *AppRepoInmem) GetCountURLs() (int, error) {
+	ari.mu.RLock()
+	defer ari.mu.RUnlock()
+
+	countURLs := len(ari.urls)
+
+	return countURLs, nil
+}

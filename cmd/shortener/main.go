@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"fmt"
 	"log"
@@ -13,26 +14,26 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pressly/goose/v3"
-	httpSwagger "github.com/swaggo/http-swagger"
-
 	"github.com/MisterMaks/go-yandex-shortener/api"
 	appDeliveryInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/delivery"
 	appRepoInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/repo"
 	appUsecaseInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/usecase"
+	"github.com/MisterMaks/go-yandex-shortener/internal/certcreator"
 	"github.com/MisterMaks/go-yandex-shortener/internal/gzip"
 	"github.com/MisterMaks/go-yandex-shortener/internal/logger"
 	userRepoInternal "github.com/MisterMaks/go-yandex-shortener/internal/user/repo"
 	userUsecaseInternal "github.com/MisterMaks/go-yandex-shortener/internal/user/usecase"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
+	httpSwagger "github.com/swaggo/http-swagger"
 	"go.uber.org/zap"
 )
 
 // App constants.
 const (
 	Addr                          string = "localhost:8080"
-	ResultAddrPrefix              string = "http://localhost:8080/"
+	ResultAddrPrefix              string = "localhost:8080"
 	URLsFileStoragePath           string = "/tmp/short-url-db.json"
 	DeletedURLsFileStoragePath    string = "/tmp/deleted-url-db.json"
 	UsersFileStoragePath          string = "/tmp/user-db.json"
@@ -98,14 +99,16 @@ type AppHandlerInterface interface {
 	APIGetOrCreateURLs(w http.ResponseWriter, r *http.Request)
 	APIGetUserURLs(w http.ResponseWriter, r *http.Request)
 	APIDeleteUserURLs(w http.ResponseWriter, r *http.Request)
+	APIGetInternalStats(w http.ResponseWriter, r *http.Request)
 }
 
 // Middlewares used middlewares.
 type Middlewares struct {
-	RequestLogger          func(http.Handler) http.Handler
-	GzipMiddleware         func(http.Handler) http.Handler
-	Authenticate           func(http.Handler) http.Handler
-	AuthenticateOrRegister func(http.Handler) http.Handler
+	RequestLogger           func(http.Handler) http.Handler
+	GzipMiddleware          func(http.Handler) http.Handler
+	Authenticate            func(http.Handler) http.Handler
+	AuthenticateOrRegister  func(http.Handler) http.Handler
+	TrustedSubnetMiddleware func(http.Handler) http.Handler
 }
 
 func shortenerRouter(
@@ -141,6 +144,10 @@ func shortenerRouter(
 		r.Get(`/`, appHandler.APIGetUserURLs)
 		r.Delete(`/`, appHandler.APIDeleteUserURLs)
 	})
+	r.Route(`/api/internal/stats`, func(r chi.Router) {
+		r.Use(middlewares.TrustedSubnetMiddleware)
+		r.Get(`/`, appHandler.APIGetInternalStats)
+	})
 
 	return r, nil
 }
@@ -162,10 +169,9 @@ func connectPostgres(dsn string) (*sql.DB, error) {
 func main() {
 	printBuildInfo()
 
-	config := &Config{}
-	err := config.parseFlags()
+	config, err := NewConfig()
 	if err != nil {
-		log.Fatalln("CRITICAL\tFailed to parse flags. Error:", err)
+		log.Fatalln("CRITICAL\tFailed to create config. Error:", err)
 	}
 
 	err = logger.Initialize(config.LogLevel)
@@ -173,24 +179,11 @@ func main() {
 		log.Fatalln("CRITICAL\tFailed to init logger. Error:", err)
 	}
 
-	logger.Log.Info("Config data",
+	logger.Log.Debug("Config data",
 		zap.Any(ConfigKey, config),
 	)
 
-	db, err := connectPostgres(config.DatabaseDSN)
-	if err != nil {
-		logger.Log.Fatal("Failed to connect to Postgres",
-			zap.Error(err),
-		)
-	}
-	defer func() {
-		err = db.Close()
-		if err != nil {
-			logger.Log.Fatal("Failed to close Postgres",
-				zap.Error(err),
-			)
-		}
-	}()
+	var db *sql.DB
 
 	var appRepo appUsecaseInternal.AppRepoInterface
 	var appRepoInmem *appRepoInternal.AppRepoInmem
@@ -246,6 +239,21 @@ func main() {
 			)
 		}
 
+		db, err = connectPostgres(config.DatabaseDSN)
+		if err != nil {
+			logger.Log.Fatal("Failed to connect to Postgres",
+				zap.Error(err),
+			)
+		}
+		defer func() {
+			err = db.Close()
+			if err != nil {
+				logger.Log.Fatal("Failed to close Postgres",
+					zap.Error(err),
+				)
+			}
+		}()
+
 		appRepoPostgres, err = appRepoInternal.NewAppRepoPostgres(db)
 		if err != nil {
 			logger.Log.Fatal("Failed to create appRepoPostgres",
@@ -263,13 +271,26 @@ func main() {
 		userRepo = userRepoPostgres
 	}
 
+	userUsecase, err := userUsecaseInternal.NewUserUsecase(
+		userRepo,
+		SecretKey,
+		TokenExp,
+	)
+	if err != nil {
+		logger.Log.Fatal("Failed to create userUsecase",
+			zap.Error(err),
+		)
+	}
+
 	appUsecase, err := appUsecaseInternal.NewAppUsecase(
 		appRepo,
+		userUsecase,
 		config.BaseURL,
 		CountRegenerationsForLengthID,
 		LengthID,
 		MaxLengthID,
 		db,
+		config.TrustedSubnet,
 		DeleteURLsChanSize,
 		DeleteURLsWaitingTime,
 	)
@@ -288,17 +309,6 @@ func main() {
 		}
 	}()
 
-	userUsecase, err := userUsecaseInternal.NewUserUsecase(
-		userRepo,
-		SecretKey,
-		TokenExp,
-	)
-	if err != nil {
-		logger.Log.Fatal("Failed to create userUsecase",
-			zap.Error(err),
-		)
-	}
-
 	appHandler := appDeliveryInternal.NewAppHandler(appUsecase)
 
 	u, err := url.ParseRequestURI(config.BaseURL)
@@ -309,10 +319,11 @@ func main() {
 	}
 
 	middlewares := &Middlewares{
-		RequestLogger:          logger.RequestLogger,
-		GzipMiddleware:         gzip.GzipMiddleware,
-		AuthenticateOrRegister: userUsecase.AuthenticateOrRegister,
-		Authenticate:           userUsecase.Authenticate,
+		RequestLogger:           logger.RequestLogger,
+		GzipMiddleware:          gzip.GzipMiddleware,
+		AuthenticateOrRegister:  userUsecase.AuthenticateOrRegister,
+		Authenticate:            userUsecase.Authenticate,
+		TrustedSubnetMiddleware: appUsecase.TrustedSubnetMiddleware,
 	}
 
 	r, err := shortenerRouter(appHandler, u, middlewares)
@@ -325,9 +336,43 @@ func main() {
 	logger.Log.Info("Server running",
 		zap.String(AddrKey, config.ServerAddress),
 	)
+
+	server := &http.Server{
+		Addr:    config.ServerAddress,
+		Handler: r,
+	}
 	go func() {
-		err = http.ListenAndServe(config.ServerAddress, r)
-		if err != nil {
+		if config.EnableHTTPS {
+			var certPEMBytes, privateKeyPEMBytes []byte
+
+			certPEMBytes, privateKeyPEMBytes, err = certcreator.Create()
+			if err != nil {
+				logger.Log.Fatal("Failed to create certificate",
+					zap.Error(err),
+				)
+			}
+
+			var cert tls.Certificate
+			cert, err = tls.X509KeyPair(certPEMBytes, privateKeyPEMBytes)
+			if err != nil {
+				logger.Log.Fatal("Failed to parse a public/private key pair from a pair of PEM encoded data",
+					zap.Error(err),
+				)
+			}
+
+			tlsConfig := &tls.Config{
+				Certificates: []tls.Certificate{cert},
+				MinVersion:   tls.VersionTLS12,
+			}
+
+			server.TLSConfig = tlsConfig
+
+			err = server.ListenAndServeTLS("", "")
+		} else {
+			err = server.ListenAndServe()
+		}
+
+		if err != nil && err != http.ErrServerClosed {
 			logger.Log.Fatal("Failed to start server",
 				zap.Error(err),
 			)
@@ -335,10 +380,12 @@ func main() {
 	}()
 
 	exitChan := make(chan os.Signal, 1)
-	signal.Notify(exitChan, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(exitChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	for exitSyg := range exitChan {
-		logger.Log.Info("terminating: via signal", zap.Any("signal", exitSyg))
-		break
+	exitSyg := <-exitChan
+	logger.Log.Info("terminating: via signal", zap.Any("signal", exitSyg))
+	err = server.Shutdown(context.Background())
+	if err != nil {
+		logger.Log.Fatal("Failed to HTTP server shutdown", zap.Error(err))
 	}
 }

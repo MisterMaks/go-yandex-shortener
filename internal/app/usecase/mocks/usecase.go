@@ -63,6 +63,21 @@ func (mr *MockAppRepoInterfaceMockRecorder) DeleteUserURLs(urls interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteUserURLs", reflect.TypeOf((*MockAppRepoInterface)(nil).DeleteUserURLs), urls)
 }
 
+// GetCountURLs mocks base method.
+func (m *MockAppRepoInterface) GetCountURLs() (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCountURLs")
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCountURLs indicates an expected call of GetCountURLs.
+func (mr *MockAppRepoInterfaceMockRecorder) GetCountURLs() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCountURLs", reflect.TypeOf((*MockAppRepoInterface)(nil).GetCountURLs))
+}
+
 // GetOrCreateURL mocks base method.
 func (m *MockAppRepoInterface) GetOrCreateURL(id, rawURL string, userID uint) (*app.URL, error) {
 	m.ctrl.T.Helper()
@@ -121,4 +136,42 @@ func (m *MockAppRepoInterface) GetUserURLs(userID uint) ([]*app.URL, error) {
 func (mr *MockAppRepoInterfaceMockRecorder) GetUserURLs(userID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserURLs", reflect.TypeOf((*MockAppRepoInterface)(nil).GetUserURLs), userID)
+}
+
+// MockUserUsecaseInterface is a mock of UserUsecaseInterface interface.
+type MockUserUsecaseInterface struct {
+	ctrl     *gomock.Controller
+	recorder *MockUserUsecaseInterfaceMockRecorder
+}
+
+// MockUserUsecaseInterfaceMockRecorder is the mock recorder for MockUserUsecaseInterface.
+type MockUserUsecaseInterfaceMockRecorder struct {
+	mock *MockUserUsecaseInterface
+}
+
+// NewMockUserUsecaseInterface creates a new mock instance.
+func NewMockUserUsecaseInterface(ctrl *gomock.Controller) *MockUserUsecaseInterface {
+	mock := &MockUserUsecaseInterface{ctrl: ctrl}
+	mock.recorder = &MockUserUsecaseInterfaceMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockUserUsecaseInterface) EXPECT() *MockUserUsecaseInterfaceMockRecorder {
+	return m.recorder
+}
+
+// GetCountUsers mocks base method.
+func (m *MockUserUsecaseInterface) GetCountUsers() (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCountUsers")
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCountUsers indicates an expected call of GetCountUsers.
+func (mr *MockUserUsecaseInterfaceMockRecorder) GetCountUsers() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCountUsers", reflect.TypeOf((*MockUserUsecaseInterface)(nil).GetCountUsers))
 }

@@ -83,3 +83,13 @@ func (uri *UserRepoInmem) CreateUser() (*user.User, error) {
 
 	return u, nil
 }
+
+// GetCountUsers get count users.
+func (uri *UserRepoInmem) GetCountUsers() (int, error) {
+	uri.mu.RLock()
+	defer uri.mu.RUnlock()
+
+	countUsers := len(uri.users)
+
+	return countUsers, nil
+}
