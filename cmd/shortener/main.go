@@ -177,20 +177,7 @@ func main() {
 		zap.Any(ConfigKey, config),
 	)
 
-	db, err := connectPostgres(config.DatabaseDSN)
-	if err != nil {
-		logger.Log.Fatal("Failed to connect to Postgres",
-			zap.Error(err),
-		)
-	}
-	defer func() {
-		err = db.Close()
-		if err != nil {
-			logger.Log.Fatal("Failed to close Postgres",
-				zap.Error(err),
-			)
-		}
-	}()
+	var db *sql.DB
 
 	var appRepo appUsecaseInternal.AppRepoInterface
 	var appRepoInmem *appRepoInternal.AppRepoInmem
@@ -245,6 +232,21 @@ func main() {
 				zap.Error(err),
 			)
 		}
+
+		db, err = connectPostgres(config.DatabaseDSN)
+		if err != nil {
+			logger.Log.Fatal("Failed to connect to Postgres",
+				zap.Error(err),
+			)
+		}
+		defer func() {
+			err = db.Close()
+			if err != nil {
+				logger.Log.Fatal("Failed to close Postgres",
+					zap.Error(err),
+				)
+			}
+		}()
 
 		appRepoPostgres, err = appRepoInternal.NewAppRepoPostgres(db)
 		if err != nil {
@@ -325,6 +327,11 @@ func main() {
 	logger.Log.Info("Server running",
 		zap.String(AddrKey, config.ServerAddress),
 	)
+
+	server := &http.Server{
+		Addr:    config.ServerAddress,
+		Handler: r,
+	}
 	go func() {
 		if config.EnableHTTPS {
 			var certPEMBytes, privateKeyPEMBytes []byte
@@ -349,15 +356,11 @@ func main() {
 				MinVersion:   tls.VersionTLS12,
 			}
 
-			server := &http.Server{
-				Addr:      config.ServerAddress,
-				Handler:   r,
-				TLSConfig: tlsConfig,
-			}
+			server.TLSConfig = tlsConfig
 
 			err = server.ListenAndServeTLS("", "")
 		} else {
-			err = http.ListenAndServe(config.ServerAddress, r)
+			err = server.ListenAndServe()
 		}
 
 		if err != nil {
@@ -368,10 +371,14 @@ func main() {
 	}()
 
 	exitChan := make(chan os.Signal, 1)
-	signal.Notify(exitChan, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(exitChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	for exitSyg := range exitChan {
 		logger.Log.Info("terminating: via signal", zap.Any("signal", exitSyg))
+		err = server.Shutdown(context.Background())
+		if err != nil {
+			logger.Log.Fatal("Failed to HTTP server shutdown", zap.Error(err))
+		}
 		break
 	}
 }
