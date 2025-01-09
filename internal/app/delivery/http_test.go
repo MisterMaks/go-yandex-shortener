@@ -697,3 +697,92 @@ func TestAppHandler_APIGetUserURLs(t *testing.T) {
 		})
 	}
 }
+
+func TestAppHandler_APIDeleteUserURLs(t *testing.T) {
+	type request struct {
+		method string
+		body   *bytes.Reader
+		ctx    context.Context
+	}
+
+	type want struct {
+		statusCode int
+	}
+
+	tests := []struct {
+		name    string
+		request request
+		want    want
+	}{
+		{
+			name: "simple",
+			request: request{
+				method: http.MethodDelete,
+				body:   bytes.NewReader([]byte(`["123", "456"]`)),
+				ctx:    context.WithValue(context.Background(), usecase.UserIDKey, uint(1)),
+			},
+			want: want{
+				statusCode: http.StatusAccepted,
+			},
+		},
+		{
+			name: "invalid method",
+			request: request{
+				method: http.MethodPost,
+				body:   bytes.NewReader([]byte(`["123", "456"]`)),
+				ctx:    context.WithValue(context.Background(), usecase.UserIDKey, uint(1)),
+			},
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+			},
+		},
+		{
+			name: "invalid body",
+			request: request{
+				method: http.MethodDelete,
+				body:   bytes.NewReader([]byte(`123`)),
+				ctx:    context.WithValue(context.Background(), usecase.UserIDKey, uint(1)),
+			},
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
+		},
+		{
+			name: "invalid user ID",
+			request: request{
+				method: http.MethodDelete,
+				body:   bytes.NewReader([]byte(`["123", "456"]`)),
+				ctx:    context.Background(),
+			},
+			want: want{
+				statusCode: http.StatusUnauthorized,
+			},
+		},
+	}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	m := mocks.NewMockAppUsecaseInterface(ctrl)
+	m.EXPECT().SendDeleteUserURLsInChan(gomock.Any(), gomock.Any()).Return().AnyTimes()
+
+	appHandler := NewAppHandler(m)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(tt.request.method, TestHost+"/api/user/urls", tt.request.body)
+			req = req.WithContext(tt.request.ctx)
+
+			w := httptest.NewRecorder()
+
+			appHandler.APIDeleteUserURLs(w, req)
+
+			res := w.Result()
+
+			err := res.Body.Close()
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.want.statusCode, res.StatusCode, "Invalid status code")
+		})
+	}
+}
