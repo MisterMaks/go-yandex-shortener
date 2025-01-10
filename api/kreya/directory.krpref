@@ -1,0 +1,12 @@
+{
+  "settings": [
+    {
+      "options": {
+        "grpc": {
+          "endpoint": "https://localhost:8080",
+          "disableServerCertificateValidation": true
+        }
+      }
+    }
+  ]
+}

@@ -15,6 +15,7 @@ import (
 type Config struct {
 	// Адрес запуска HTTP-сервера. Пример: localhost:8080
 	ServerAddress string `env:"SERVER_ADDRESS" mapstructure:"server_address"` // address to start the server
+	GRPCAddress   string `env:"GRPC_ADDRESS" mapstructure:"grpc_address"`
 	// Базовый адрес результирующего сокращённого URL
 	// Требования:
 	//     - Должен быть указан протокол (по умолчанию автоматически добавится http://): http/https
@@ -36,6 +37,10 @@ func readConfigFile(c *Config) error {
 	pflag.Parse()
 
 	err := v.BindPFlag("server_address", pflag.Lookup("a"))
+	if err != nil {
+		return err
+	}
+	err = v.BindPFlag("grpc_address", pflag.Lookup("g"))
 	if err != nil {
 		return err
 	}
@@ -85,6 +90,7 @@ func NewConfig() (*Config, error) {
 	c := &Config{}
 
 	flag.StringVar(&c.ServerAddress, "a", "", "Server address")
+	flag.StringVar(&c.GRPCAddress, "g", "", "GRPC address")
 	flag.StringVar(&c.BaseURL, "b", "", "Base URL")
 	flag.StringVar(&c.LogLevel, "l", "", "Log level")
 	flag.StringVar(&c.FileStoragePath, "f", "", "File storage path")
@@ -123,6 +129,9 @@ func NewConfig() (*Config, error) {
 	// Если не ввели -a, -b, -l, -f то значения по-умолчанию
 	if c.ServerAddress == "" {
 		c.ServerAddress = Addr
+	}
+	if c.GRPCAddress == "" {
+		c.GRPCAddress = GRPCAddr
 	}
 	if c.BaseURL == "" {
 		c.BaseURL = ResultAddrPrefix

@@ -31,11 +31,13 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 // App constants.
 const (
 	Addr                          string = "localhost:8080"
+	GRPCAddr                      string = "localhost:8081"
 	ResultAddrPrefix              string = "localhost:8080"
 	URLsFileStoragePath           string = "/tmp/short-url-db.json"
 	DeletedURLsFileStoragePath    string = "/tmp/deleted-url-db.json"
@@ -167,6 +169,32 @@ func connectPostgres(dsn string) (*sql.DB, error) {
 		)
 	}
 	return db, nil
+}
+
+func createTLSConfig() (*tls.Config, error) {
+	certPEMBytes, privateKeyPEMBytes, err := certcreator.Create()
+	if err != nil {
+		logger.Log.Fatal("Failed to create certificate",
+			zap.Error(err),
+		)
+		return nil, err
+	}
+
+	var cert tls.Certificate
+	cert, err = tls.X509KeyPair(certPEMBytes, privateKeyPEMBytes)
+	if err != nil {
+		logger.Log.Fatal("Failed to parse a public/private key pair from a pair of PEM encoded data",
+			zap.Error(err),
+		)
+		return nil, err
+	}
+
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12,
+	}
+
+	return tlsConfig, nil
 }
 
 func main() {
@@ -336,55 +364,44 @@ func main() {
 		)
 	}
 
+	appGRPCHandler := appDeliveryInternal.NewAppGRPCHandler(appUsecase)
+
+	server := &http.Server{
+		Handler: r,
+		Addr:    config.ServerAddress,
+	}
+	var grpcServer *grpc.Server
+
+	if config.EnableHTTPS {
+		var tlsConfig *tls.Config
+
+		tlsConfig, err = createTLSConfig()
+		if err != nil {
+			logger.Log.Fatal("Failed to create certificate",
+				zap.Error(err),
+			)
+		}
+
+		server.TLSConfig = tlsConfig
+
+		grpcServer = grpc.NewServer(
+			grpc.Creds(credentials.NewTLS(tlsConfig)),
+		)
+	} else {
+		grpcServer = grpc.NewServer()
+	}
+
+	pb.RegisterAppServer(grpcServer, appGRPCHandler)
+
 	logger.Log.Info("Server running",
 		zap.String(AddrKey, config.ServerAddress),
 	)
 
-	listen, err := net.Listen("tcp", config.ServerAddress)
-	if err != nil {
-		logger.Log.Fatal("Failed to create listen",
-			zap.Error(err),
-		)
-	}
-
-	server := &http.Server{
-		Handler: r,
-	}
-
-	grpcServer := grpc.NewServer()
-	appGRPCHandler := appDeliveryInternal.NewAppGRPCHandler(appUsecase)
-
-	pb.RegisterAppServer(grpcServer, appGRPCHandler)
-
 	go func() {
 		if config.EnableHTTPS {
-			var certPEMBytes, privateKeyPEMBytes []byte
-
-			certPEMBytes, privateKeyPEMBytes, err = certcreator.Create()
-			if err != nil {
-				logger.Log.Fatal("Failed to create certificate",
-					zap.Error(err),
-				)
-			}
-
-			var cert tls.Certificate
-			cert, err = tls.X509KeyPair(certPEMBytes, privateKeyPEMBytes)
-			if err != nil {
-				logger.Log.Fatal("Failed to parse a public/private key pair from a pair of PEM encoded data",
-					zap.Error(err),
-				)
-			}
-
-			tlsConfig := &tls.Config{
-				Certificates: []tls.Certificate{cert},
-				MinVersion:   tls.VersionTLS12,
-			}
-
-			server.TLSConfig = tlsConfig
-
-			err = server.ServeTLS(listen, "", "")
+			err = server.ListenAndServeTLS("", "")
 		} else {
-			err = server.Serve(listen)
+			err = server.ListenAndServe()
 		}
 
 		if err != nil && err != http.ErrServerClosed {
@@ -392,9 +409,22 @@ func main() {
 				zap.Error(err),
 			)
 		}
+	}()
 
+	listen, err := net.Listen("tcp", config.GRPCAddress)
+	if err != nil {
+		logger.Log.Fatal("Failed to create listen",
+			zap.Error(err),
+		)
+	}
+
+	logger.Log.Info("GRPC server running",
+		zap.String(AddrKey, config.GRPCAddress),
+	)
+
+	go func() {
 		err = grpcServer.Serve(listen)
-		if err != nil {
+		if err != nil && err != grpc.ErrServerStopped {
 			logger.Log.Fatal("Failed to start GRPC server",
 				zap.Error(err),
 			)
