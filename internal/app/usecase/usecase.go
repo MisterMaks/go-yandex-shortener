@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"math/rand"
@@ -11,6 +12,10 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 
 	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 	loggerInternal "github.com/MisterMaks/go-yandex-shortener/internal/logger"
@@ -92,6 +97,8 @@ type AppUsecase struct {
 	deleteURLsTicker *time.Ticker
 
 	doneCh chan struct{}
+
+	GRPCMethodsForTrustedSubnetUnaryInterceptor map[string]struct{}
 }
 
 // NewAppUsecase creates *AppUsecase.
@@ -104,6 +111,7 @@ func NewAppUsecase(
 	trustedSubnetStr string,
 	deleteURLsChanSize uint,
 	deleteURLsWaitingTime time.Duration,
+	grpcMethodsForTrustedSubnetUnaryInterceptorSl []string,
 ) (*AppUsecase, error) {
 	if lengthID == 0 {
 		return nil, ErrZeroLengthID
@@ -130,6 +138,12 @@ func NewAppUsecase(
 		}
 	}
 
+	grpcMethodsForAuthenticateUnaryInterceptor := map[string]struct{}{}
+
+	for _, grpcMethod := range grpcMethodsForTrustedSubnetUnaryInterceptorSl {
+		grpcMethodsForAuthenticateUnaryInterceptor[grpcMethod] = struct{}{}
+	}
+
 	doneCh := make(chan struct{})
 
 	appUsecase := &AppUsecase{
@@ -147,6 +161,8 @@ func NewAppUsecase(
 		deleteURLsTicker: time.NewTicker(deleteURLsWaitingTime),
 
 		doneCh: doneCh,
+
+		GRPCMethodsForTrustedSubnetUnaryInterceptor: grpcMethodsForAuthenticateUnaryInterceptor,
 	}
 
 	go appUsecase.deleteUserURLs()
@@ -373,4 +389,39 @@ func (au *AppUsecase) TrustedSubnetMiddleware(h http.Handler) http.Handler {
 
 		h.ServeHTTP(w, r)
 	})
+}
+
+func (au *AppUsecase) TrustedSubnetUnaryInterceptor(ctx context.Context, req any, si *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+	if _, ok := au.GRPCMethodsForTrustedSubnetUnaryInterceptor[si.FullMethod]; !ok {
+		return handler(ctx, req)
+	}
+
+	if au.trustedSubnet == nil {
+		return nil, status.Error(codes.PermissionDenied, "permission denied")
+	}
+
+	var ipStr string
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		values := md.Get("X-Real-IP")
+		if len(values) > 0 {
+			ipStr = values[0]
+		}
+	}
+
+	if len(ipStr) == 0 {
+		return nil, status.Error(codes.PermissionDenied, "permission denied")
+	}
+
+	ip := net.ParseIP(ipStr)
+
+	if ip == nil {
+		return nil, status.Error(codes.PermissionDenied, "permission denied")
+	}
+
+	ok := au.trustedSubnet.Contains(ip)
+	if !ok {
+		return nil, status.Error(codes.PermissionDenied, "permission denied")
+	}
+
+	return handler(ctx, req)
 }

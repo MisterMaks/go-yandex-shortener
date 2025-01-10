@@ -3,7 +3,17 @@
     {
       "options": {
         "grpc": {
-          "endpoint": "https://127.0.0.1:8081"
+          "endpoint": "https://127.0.0.1:8081",
+          "metadata": [
+            {
+              "key": "accesstoken",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzY1NTczNTgsIlVzZXJJRCI6NzZ9.XQcwykbiWvZIMyVIJGv2ZQUvYYe4SJnfTHJ85NBArhQ"
+            },
+            {
+              "key": "X-Real-IP",
+              "value": "127.0.0.1"
+            }
+          ]
         },
         "rest": {
           "pathParams": []

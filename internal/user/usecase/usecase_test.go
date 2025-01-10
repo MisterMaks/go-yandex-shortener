@@ -13,19 +13,21 @@ import (
 )
 
 func TestNewUserUsecase(t *testing.T) {
-	u, err := NewUserUsecase(nil, "secretkey", time.Second)
+	u, err := NewUserUsecase(nil, "secretkey", time.Second, nil, nil)
 	require.NoError(t, err)
 	assert.Equal(t, &UserUsecase{
 		UserRepo:  nil,
 		SecretKey: "secretkey",
 		TokenExp:  time.Second,
+		GRPCMethodsForAuthenticateUnaryInterceptor:           map[string]struct{}{},
+		GRPCMethodsForAuthenticateOrRegisterUnaryInterceptor: map[string]struct{}{},
 	}, u)
 }
 
 func TestBuildJWTStringAndGetUserID(t *testing.T) {
 	testUserID := uint(1)
 
-	u, err := NewUserUsecase(nil, "secretkey", time.Second)
+	u, err := NewUserUsecase(nil, "secretkey", time.Second, nil, nil)
 	require.NoError(t, err)
 
 	jwtString, err := u.buildJWTString(testUserID)
@@ -47,7 +49,7 @@ func TestUserUsecase_CreateUser(t *testing.T) {
 	m := mocks.NewMockUserRepoInterface(ctrl)
 	m.EXPECT().CreateUser().Return(testUser, nil)
 
-	u, err := NewUserUsecase(m, "secretkey", time.Second)
+	u, err := NewUserUsecase(m, "secretkey", time.Second, nil, nil)
 	require.NoError(t, err)
 
 	actualUser, err := u.CreateUser()

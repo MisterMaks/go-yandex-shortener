@@ -38,7 +38,7 @@ func (agh *AppGRPCHandler) GetOrCreateURL(ctx context.Context, in *pb.GetOrCreat
 		return nil, status.Error(codes.Unauthenticated, "User unauthorized")
 	}
 
-	url, exists, err := agh.AppUsecase.GetOrCreateURL(in.Url, userID)
+	url, _, err := agh.AppUsecase.GetOrCreateURL(in.Url, userID)
 	if err != nil {
 		handlerLogger.Warn("Bad request",
 			zap.Any(RequestKey, in),
@@ -54,10 +54,6 @@ func (agh *AppGRPCHandler) GetOrCreateURL(ctx context.Context, in *pb.GetOrCreat
 		zap.String(URLKey, url.URL),
 		zap.String(ShortURLKey, shortURL),
 	)
-
-	if exists {
-		return &pb.GetOrCreateURLResponse{ShortUrl: shortURL}, status.Error(codes.AlreadyExists, "URL already exists")
-	}
 
 	return &pb.GetOrCreateURLResponse{ShortUrl: shortURL}, nil
 }

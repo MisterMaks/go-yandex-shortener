@@ -306,6 +306,8 @@ func main() {
 		userRepo,
 		SecretKey,
 		TokenExp,
+		[]string{pb.App_GetOrCreateURL_FullMethodName, pb.App_GetOrCreateURLs_FullMethodName},
+		[]string{pb.App_GetUserURLs_FullMethodName, pb.App_DeleteUserURLs_FullMethodName},
 	)
 	if err != nil {
 		logger.Log.Fatal("Failed to create userUsecase",
@@ -324,6 +326,7 @@ func main() {
 		config.TrustedSubnet,
 		DeleteURLsChanSize,
 		DeleteURLsWaitingTime,
+		[]string{pb.App_GetInternalStats_FullMethodName},
 	)
 	if err != nil {
 		logger.Log.Fatal("Failed to create appUsecase",
@@ -386,9 +389,22 @@ func main() {
 
 		grpcServer = grpc.NewServer(
 			grpc.Creds(credentials.NewTLS(tlsConfig)),
+			grpc.ChainUnaryInterceptor(
+				logger.RequestLoggerUnaryInterceptor,
+				userUsecase.AuthenticateUnaryInterceptor,
+				userUsecase.AuthenticateOrRegisterUnaryInterceptor,
+				appUsecase.TrustedSubnetUnaryInterceptor,
+			),
 		)
 	} else {
-		grpcServer = grpc.NewServer()
+		grpcServer = grpc.NewServer(
+			grpc.ChainUnaryInterceptor(
+				logger.RequestLoggerUnaryInterceptor,
+				userUsecase.AuthenticateUnaryInterceptor,
+				userUsecase.AuthenticateOrRegisterUnaryInterceptor,
+				appUsecase.TrustedSubnetUnaryInterceptor,
+			),
+		)
 	}
 
 	pb.RegisterAppServer(grpcServer, appGRPCHandler)
