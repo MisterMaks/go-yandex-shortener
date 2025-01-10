@@ -19,8 +19,8 @@ func TestNewUserUsecase(t *testing.T) {
 		UserRepo:  nil,
 		SecretKey: "secretkey",
 		TokenExp:  time.Second,
-		GRPCMethodsForAuthenticateUnaryInterceptor:           map[string]struct{}{},
-		GRPCMethodsForAuthenticateOrRegisterUnaryInterceptor: map[string]struct{}{},
+		grpcMethodsForAuthenticateUnaryInterceptor:           map[string]struct{}{},
+		grpcMethodsForAuthenticateOrRegisterUnaryInterceptor: map[string]struct{}{},
 	}, u)
 }
 

@@ -44,8 +44,8 @@ type UserUsecase struct {
 	SecretKey string
 	TokenExp  time.Duration
 
-	GRPCMethodsForAuthenticateOrRegisterUnaryInterceptor map[string]struct{}
-	GRPCMethodsForAuthenticateUnaryInterceptor           map[string]struct{}
+	grpcMethodsForAuthenticateOrRegisterUnaryInterceptor map[string]struct{}
+	grpcMethodsForAuthenticateUnaryInterceptor           map[string]struct{}
 }
 
 // NewUserUsecase creates *UserUsecase.
@@ -73,8 +73,8 @@ func NewUserUsecase(
 		SecretKey: sk,
 		TokenExp:  te,
 
-		GRPCMethodsForAuthenticateOrRegisterUnaryInterceptor: grpcMethodsForAuthenticateOrRegisterUnaryInterceptor,
-		GRPCMethodsForAuthenticateUnaryInterceptor:           grpcMethodsForAuthenticateUnaryInterceptor,
+		grpcMethodsForAuthenticateOrRegisterUnaryInterceptor: grpcMethodsForAuthenticateOrRegisterUnaryInterceptor,
+		grpcMethodsForAuthenticateUnaryInterceptor:           grpcMethodsForAuthenticateUnaryInterceptor,
 	}, nil
 }
 
@@ -217,7 +217,7 @@ func (uu *UserUsecase) Authenticate(h http.Handler) http.Handler {
 
 // AuthenticateOrRegisterUnaryInterceptor is unary interceptor for auths or registers user.
 func (uu *UserUsecase) AuthenticateOrRegisterUnaryInterceptor(ctx context.Context, req any, si *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-	if _, ok := uu.GRPCMethodsForAuthenticateOrRegisterUnaryInterceptor[si.FullMethod]; !ok {
+	if _, ok := uu.grpcMethodsForAuthenticateOrRegisterUnaryInterceptor[si.FullMethod]; !ok {
 		return handler(ctx, req)
 	}
 
@@ -275,7 +275,7 @@ func (uu *UserUsecase) AuthenticateOrRegisterUnaryInterceptor(ctx context.Contex
 
 // AuthenticateUnaryInterceptor is unary interceptor for auths user.
 func (uu *UserUsecase) AuthenticateUnaryInterceptor(ctx context.Context, req any, si *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-	if _, ok := uu.GRPCMethodsForAuthenticateUnaryInterceptor[si.FullMethod]; !ok {
+	if _, ok := uu.grpcMethodsForAuthenticateUnaryInterceptor[si.FullMethod]; !ok {
 		return handler(ctx, req)
 	}
 

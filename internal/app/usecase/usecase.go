@@ -98,7 +98,7 @@ type AppUsecase struct {
 
 	doneCh chan struct{}
 
-	GRPCMethodsForTrustedSubnetUnaryInterceptor map[string]struct{}
+	grpcMethodsForTrustedSubnetUnaryInterceptor map[string]struct{}
 }
 
 // NewAppUsecase creates *AppUsecase.
@@ -162,7 +162,7 @@ func NewAppUsecase(
 
 		doneCh: doneCh,
 
-		GRPCMethodsForTrustedSubnetUnaryInterceptor: grpcMethodsForAuthenticateUnaryInterceptor,
+		grpcMethodsForTrustedSubnetUnaryInterceptor: grpcMethodsForAuthenticateUnaryInterceptor,
 	}
 
 	go appUsecase.deleteUserURLs()
@@ -391,8 +391,9 @@ func (au *AppUsecase) TrustedSubnetMiddleware(h http.Handler) http.Handler {
 	})
 }
 
+// TrustedSubnetUnaryInterceptor is interceptor for check trusted ip.
 func (au *AppUsecase) TrustedSubnetUnaryInterceptor(ctx context.Context, req any, si *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-	if _, ok := au.GRPCMethodsForTrustedSubnetUnaryInterceptor[si.FullMethod]; !ok {
+	if _, ok := au.grpcMethodsForTrustedSubnetUnaryInterceptor[si.FullMethod]; !ok {
 		return handler(ctx, req)
 	}
 
