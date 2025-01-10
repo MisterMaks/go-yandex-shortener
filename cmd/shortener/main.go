@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	pb "github.com/MisterMaks/go-yandex-shortener/api/proto"
 	"github.com/MisterMaks/go-yandex-shortener/api/swagger"
 	appDeliveryInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/delivery"
 	appRepoInternal "github.com/MisterMaks/go-yandex-shortener/internal/app/repo"
@@ -28,6 +30,7 @@ import (
 	"github.com/pressly/goose/v3"
 	httpSwagger "github.com/swaggo/http-swagger"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 )
 
 // App constants.
@@ -337,10 +340,22 @@ func main() {
 		zap.String(AddrKey, config.ServerAddress),
 	)
 
+	listen, err := net.Listen("tcp", config.ServerAddress)
+	if err != nil {
+		logger.Log.Fatal("Failed to create listen",
+			zap.Error(err),
+		)
+	}
+
 	server := &http.Server{
-		Addr:    config.ServerAddress,
 		Handler: r,
 	}
+
+	grpcServer := grpc.NewServer()
+	appGRPCHandler := appDeliveryInternal.NewAppGRPCHandler(appUsecase)
+
+	pb.RegisterAppServer(grpcServer, appGRPCHandler)
+
 	go func() {
 		if config.EnableHTTPS {
 			var certPEMBytes, privateKeyPEMBytes []byte
@@ -367,13 +382,20 @@ func main() {
 
 			server.TLSConfig = tlsConfig
 
-			err = server.ListenAndServeTLS("", "")
+			err = server.ServeTLS(listen, "", "")
 		} else {
-			err = server.ListenAndServe()
+			err = server.Serve(listen)
 		}
 
 		if err != nil && err != http.ErrServerClosed {
 			logger.Log.Fatal("Failed to start server",
+				zap.Error(err),
+			)
+		}
+
+		err = grpcServer.Serve(listen)
+		if err != nil {
+			logger.Log.Fatal("Failed to start GRPC server",
 				zap.Error(err),
 			)
 		}
@@ -388,4 +410,5 @@ func main() {
 	if err != nil {
 		logger.Log.Fatal("Failed to HTTP server shutdown", zap.Error(err))
 	}
+	grpcServer.GracefulStop()
 }

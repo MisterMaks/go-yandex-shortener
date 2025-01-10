@@ -30,6 +30,7 @@ const (
 	ShortURLKey       string = "short_url"
 	RequestPathIDKey  string = "request_path_id"
 	ResponseKey       string = "response"
+	RequestKey        string = "request"
 )
 
 // AppUsecaseInterface contains the necessary functions for the business logic of app.
