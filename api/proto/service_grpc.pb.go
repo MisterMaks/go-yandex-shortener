@@ -32,7 +32,6 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AppClient interface {
 	GetOrCreateURL(ctx context.Context, in *GetOrCreateURLRequest, opts ...grpc.CallOption) (*GetOrCreateURLResponse, error)
-	// rpc RedirectToURL(RedirectToURLRequest) returns (RedirectToURLResponse);
 	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error)
 	GetOrCreateURLs(ctx context.Context, in *GetOrCreateURLsRequest, opts ...grpc.CallOption) (*GetOrCreateURLsResponse, error)
 	GetUserURLs(ctx context.Context, in *GetUserURLsRequest, opts ...grpc.CallOption) (*GetUserURLsResponse, error)
@@ -113,7 +112,6 @@ func (c *appClient) GetInternalStats(ctx context.Context, in *GetInternalStatsRe
 // for forward compatibility.
 type AppServer interface {
 	GetOrCreateURL(context.Context, *GetOrCreateURLRequest) (*GetOrCreateURLResponse, error)
-	// rpc RedirectToURL(RedirectToURLRequest) returns (RedirectToURLResponse);
 	Ping(context.Context, *PingRequest) (*PingResponse, error)
 	GetOrCreateURLs(context.Context, *GetOrCreateURLsRequest) (*GetOrCreateURLsResponse, error)
 	GetUserURLs(context.Context, *GetUserURLsRequest) (*GetUserURLsResponse, error)

@@ -6,7 +6,6 @@ option go_package = "github.com/MisterMaks/go-yandex-shortener/api/proto";
 
 service App {
   rpc GetOrCreateURL(GetOrCreateURLRequest) returns (GetOrCreateURLResponse);
-//  rpc RedirectToURL(RedirectToURLRequest) returns (RedirectToURLResponse);
   rpc Ping(PingRequest) returns (PingResponse);
   rpc GetOrCreateURLs(GetOrCreateURLsRequest) returns (GetOrCreateURLsResponse);
   rpc GetUserURLs(GetUserURLsRequest) returns (GetUserURLsResponse);
