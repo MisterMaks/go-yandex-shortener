@@ -76,23 +76,6 @@ func (c *consumer) close() error {
 	return c.file.Close()
 }
 
-func (c *consumer) readURL() (*app.URL, error) {
-	// одиночное сканирование до следующей строки
-	if !c.scanner.Scan() {
-		return nil, c.scanner.Err()
-	}
-	// читаем данные из scanner
-	data := c.scanner.Bytes()
-
-	url := app.URL{}
-	err := json.Unmarshal(data, &url)
-	if err != nil {
-		return nil, err
-	}
-
-	return &url, nil
-}
-
 func (c *consumer) readURLs() ([]*app.URL, error) {
 	urls := make([]*app.URL, 0, DefaultCountURLs)
 

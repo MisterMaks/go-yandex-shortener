@@ -305,3 +305,14 @@ func TestAppRepoPostgres_DeleteUserURLs(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, u.IsDeleted)
 }
+
+func TestAppRepoPostgres_Close(t *testing.T) {
+	te := newTestEnvironment(DSN, t)
+	defer te.clean()
+
+	r, err := NewAppRepoPostgres(te.DB)
+	require.NoError(t, err, "Failed to run NewAppRepoPostgres()")
+
+	err = r.Close()
+	assert.NoError(t, err)
+}

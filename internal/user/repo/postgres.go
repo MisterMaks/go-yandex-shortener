@@ -27,3 +27,8 @@ func (urp *UserRepoPostgres) CreateUser() (*user.User, error) {
 	u := &user.User{ID: id}
 	return u, nil
 }
+
+// Close finishes working with the db.
+func (urp *UserRepoPostgres) Close() error {
+	return urp.db.Close()
+}

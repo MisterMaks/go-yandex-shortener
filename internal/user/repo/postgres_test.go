@@ -96,3 +96,14 @@ func TestAppRepo_CreateUser(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, u)
 }
+
+func TestUserRepoPostgres_Close(t *testing.T) {
+	te := newTestEnvironment(DSN, t)
+	defer te.clean()
+
+	userRepo, err := NewUserRepoPostgres(te.DB)
+	require.NoError(t, err, "Failed to run NewUserRepoPostgres()")
+
+	err = userRepo.Close()
+	assert.NoError(t, err)
+}

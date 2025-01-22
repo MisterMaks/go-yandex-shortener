@@ -34,6 +34,20 @@ func (m *MockUserRepoInterface) EXPECT() *MockUserRepoInterfaceMockRecorder {
 	return m.recorder
 }
 
+// Close mocks base method.
+func (m *MockUserRepoInterface) Close() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Close indicates an expected call of Close.
+func (mr *MockUserRepoInterfaceMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockUserRepoInterface)(nil).Close))
+}
+
 // CreateUser mocks base method.
 func (m *MockUserRepoInterface) CreateUser() (*user.User, error) {
 	m.ctrl.T.Helper()

@@ -285,6 +285,223 @@ func generateTestURLs(countUsers, countUserURLs uint) []*app.URL {
 	return urls
 }
 
+func TestAppRepoInmem_Close(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", TestFilenamePattern)
+	require.NoError(t, err)
+	defer func() {
+		err = os.Remove(tmpFile.Name())
+		require.NoError(t, err)
+	}()
+
+	appRepoInMem, err := NewAppRepoInmem(tmpFile.Name(), tmpFile.Name())
+	require.NoError(t, err)
+	assert.NotNil(t, appRepoInMem)
+
+	err = appRepoInMem.Close()
+	assert.NoError(t, err)
+}
+
+func TestAppRepoInmem_GetOrCreateURLs(t *testing.T) {
+	urls := []*app.URL{
+		{
+			ID:        "1",
+			URL:       "test1",
+			UserID:    uint(1),
+			IsDeleted: false,
+		},
+		{
+			ID:        "2",
+			URL:       "test2",
+			UserID:    uint(1),
+			IsDeleted: false,
+		},
+		{
+			ID:        "3",
+			URL:       "test1",
+			UserID:    uint(2),
+			IsDeleted: false,
+		},
+	}
+
+	expectedURLs := []*app.URL{
+		{
+			ID:        "1",
+			URL:       "test1",
+			UserID:    uint(1),
+			IsDeleted: false,
+		},
+		{
+			ID:        "2",
+			URL:       "test2",
+			UserID:    uint(1),
+			IsDeleted: false,
+		},
+		{
+			ID:        "1",
+			URL:       "test1",
+			UserID:    uint(1),
+			IsDeleted: false,
+		},
+	}
+
+	tmpFile, err := os.CreateTemp("", TestFilenamePattern)
+	require.NoError(t, err)
+	defer func() {
+		err = os.Remove(tmpFile.Name())
+		require.NoError(t, err)
+	}()
+
+	appRepoInMem, err := NewAppRepoInmem(tmpFile.Name(), tmpFile.Name())
+	require.NoError(t, err)
+	assert.NotNil(t, appRepoInMem)
+
+	defer func() { err = appRepoInMem.Close(); require.NoError(t, err) }()
+
+	actualURLs, err := appRepoInMem.GetOrCreateURLs(urls)
+	require.NoError(t, err)
+	assert.Equal(t, expectedURLs, actualURLs)
+}
+
+func TestAppRepoInmem_GetUserURLs(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", TestFilenamePattern)
+	require.NoError(t, err)
+	defer func() {
+		err = os.Remove(tmpFile.Name())
+		require.NoError(t, err)
+	}()
+
+	appRepoInMem, err := NewAppRepoInmem(tmpFile.Name(), tmpFile.Name())
+	require.NoError(t, err)
+	assert.NotNil(t, appRepoInMem)
+
+	defer func() { err = appRepoInMem.Close(); require.NoError(t, err) }()
+
+	urls := []*app.URL{
+		{
+			ID:        "1",
+			URL:       "test1",
+			UserID:    uint(1),
+			IsDeleted: false,
+		},
+		{
+			ID:        "2",
+			URL:       "test2",
+			UserID:    uint(1),
+			IsDeleted: false,
+		},
+		{
+			ID:        "3",
+			URL:       "test1",
+			UserID:    uint(2),
+			IsDeleted: false,
+		},
+	}
+
+	_, err = appRepoInMem.GetOrCreateURLs(urls)
+	require.NoError(t, err)
+
+	actualURLs, err := appRepoInMem.GetUserURLs(uint(1))
+	require.NoError(t, err)
+
+	expectedURLs := []*app.URL{
+		{
+			ID:        "1",
+			URL:       "test1",
+			UserID:    uint(1),
+			IsDeleted: false,
+		},
+		{
+			ID:        "2",
+			URL:       "test2",
+			UserID:    uint(1),
+			IsDeleted: false,
+		},
+	}
+
+	assert.Equal(t, expectedURLs, actualURLs)
+}
+
+func TestAppRepoInmem_DeleteUserURLs(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", TestFilenamePattern)
+	require.NoError(t, err)
+	defer func() {
+		err = os.Remove(tmpFile.Name())
+		require.NoError(t, err)
+	}()
+
+	appRepoInMem, err := NewAppRepoInmem(tmpFile.Name(), tmpFile.Name())
+	require.NoError(t, err)
+	assert.NotNil(t, appRepoInMem)
+
+	defer func() { err = appRepoInMem.Close(); require.NoError(t, err) }()
+
+	urls := []*app.URL{
+		{
+			ID:        "1",
+			URL:       "test1",
+			UserID:    uint(1),
+			IsDeleted: false,
+		},
+		{
+			ID:        "2",
+			URL:       "test2",
+			UserID:    uint(1),
+			IsDeleted: false,
+		},
+		{
+			ID:        "3",
+			URL:       "test3",
+			UserID:    uint(2),
+			IsDeleted: false,
+		},
+	}
+
+	_, err = appRepoInMem.GetOrCreateURLs(urls)
+	require.NoError(t, err)
+
+	urlsForDeletion := []*app.URL{
+		{
+			ID:        "1",
+			URL:       "test1",
+			UserID:    uint(1),
+			IsDeleted: false,
+		},
+		{
+			ID:        "2",
+			URL:       "test2",
+			UserID:    uint(1),
+			IsDeleted: false,
+		},
+	}
+
+	err = appRepoInMem.DeleteUserURLs(urlsForDeletion)
+	require.NoError(t, err)
+
+	appRepoInMem.mu.RLock()
+	defer appRepoInMem.mu.RUnlock()
+
+	assert.Equal(t, []*app.URL{
+		{
+			ID:        "1",
+			URL:       "test1",
+			UserID:    uint(1),
+			IsDeleted: true,
+		},
+		{
+			ID:        "2",
+			URL:       "test2",
+			UserID:    uint(1),
+			IsDeleted: true,
+		},
+		{
+			ID:        "3",
+			URL:       "test3",
+			UserID:    uint(2),
+			IsDeleted: false,
+		},
+	}, appRepoInMem.urls)
+}
+
 func BenchmarkAppRepoInmem_GetOrCreateURL(b *testing.B) {
 	urls := generateTestURLs(10, 10)
 

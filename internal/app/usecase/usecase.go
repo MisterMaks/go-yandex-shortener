@@ -63,6 +63,7 @@ type AppRepoInterface interface {
 	GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error)             // get created or create URLs
 	GetUserURLs(userID uint) ([]*app.URL, error)                     // get user URLs
 	DeleteUserURLs(urls []*app.URL) error                            // delete urls
+	Close() error
 }
 
 // AppUsecase business logic struct.
