@@ -178,52 +178,24 @@ func main() {
 	)
 
 	var db *sql.DB
-
 	var appRepo appUsecaseInternal.AppRepoInterface
-	var appRepoInmem *appRepoInternal.AppRepoInmem
-	var appRepoPostgres *appRepoInternal.AppRepoPostgres
-
 	var userRepo userUsecaseInternal.UserRepoInterface
-	var userRepoInmem *userRepoInternal.UserRepoInmem
-	var userRepoPostgres *userRepoInternal.UserRepoPostgres
 
 	switch config.DatabaseDSN {
 	case "":
-		appRepoInmem, err = appRepoInternal.NewAppRepoInmem(config.FileStoragePath, DeletedURLsFileStoragePath)
+		appRepo, err = appRepoInternal.NewAppRepoInmem(config.FileStoragePath, DeletedURLsFileStoragePath)
 		if err != nil {
 			logger.Log.Fatal("Failed to create appRepoInmem",
 				zap.Error(err),
 			)
 		}
 
-		defer func() {
-			err = appRepoInmem.Close()
-			if err != nil {
-				logger.Log.Fatal("Failed to close appRepoInMem",
-					zap.Error(err),
-				)
-			}
-		}()
-
-		appRepo = appRepoInmem
-
-		userRepoInmem, err = userRepoInternal.NewUserRepoInmem(UsersFileStoragePath)
+		userRepo, err = userRepoInternal.NewUserRepoInmem(UsersFileStoragePath)
 		if err != nil {
 			logger.Log.Fatal("Failed to create userRepoInmem",
 				zap.Error(err),
 			)
 		}
-
-		defer func() {
-			err = userRepoInmem.Close()
-			if err != nil {
-				logger.Log.Fatal("Failed to close userRepoInmem",
-					zap.Error(err),
-				)
-			}
-		}()
-
-		userRepo = userRepoInmem
 	default:
 		logger.Log.Info("Applying migrations")
 		err = migrate(config.DatabaseDSN)
@@ -248,22 +220,38 @@ func main() {
 			}
 		}()
 
-		appRepoPostgres, err = appRepoInternal.NewAppRepoPostgres(db)
+		appRepo, err = appRepoInternal.NewAppRepoPostgres(db)
 		if err != nil {
 			logger.Log.Fatal("Failed to create appRepoPostgres",
 				zap.Error(err),
 			)
 		}
-		appRepo = appRepoPostgres
 
-		userRepoPostgres, err = userRepoInternal.NewUserRepoPostgres(db)
+		userRepo, err = userRepoInternal.NewUserRepoPostgres(db)
 		if err != nil {
 			logger.Log.Fatal("Failed to create userRepoPostgres",
 				zap.Error(err),
 			)
 		}
-		userRepo = userRepoPostgres
 	}
+
+	defer func() {
+		err = appRepo.Close()
+		if err != nil {
+			logger.Log.Fatal("Failed to close appRepo",
+				zap.Error(err),
+			)
+		}
+	}()
+
+	defer func() {
+		err = userRepo.Close()
+		if err != nil {
+			logger.Log.Fatal("Failed to close userRepo",
+				zap.Error(err),
+			)
+		}
+	}()
 
 	appUsecase, err := appUsecaseInternal.NewAppUsecase(
 		appRepo,

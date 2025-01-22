@@ -30,6 +30,7 @@ type Claims struct {
 // UserRepoInterface contains the necessary functions for storage.
 type UserRepoInterface interface {
 	CreateUser() (*user.User, error)
+	Close() error
 }
 
 // UserUsecase business logic struct.

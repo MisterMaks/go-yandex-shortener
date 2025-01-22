@@ -155,3 +155,8 @@ func (arp *AppRepoPostgres) DeleteUserURLs(urls []*app.URL) error {
 
 	return err
 }
+
+// Close finishes working with the db.
+func (arp *AppRepoPostgres) Close() error {
+	return arp.db.Close()
+}
