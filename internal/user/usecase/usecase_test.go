@@ -156,7 +156,11 @@ func TestUserUsecase_AuthenticateOrRegister(t *testing.T) {
 				request.AddCookie(tt.cookie)
 			}
 
-			_, _ = ts.Client().Do(request)
+			response, err := ts.Client().Do(request)
+			require.NoError(t, err)
+			err = response.Body.Close()
+			require.NoError(t, err)
+			assert.Equal(t, http.StatusOK, response.StatusCode)
 		})
 	}
 }
