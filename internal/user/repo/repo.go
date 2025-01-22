@@ -6,6 +6,7 @@ import (
 	"github.com/MisterMaks/go-yandex-shortener/internal/user/usecase"
 )
 
+// NewUserRepo init repo.
 func NewUserRepo(db *sql.DB, filename string) (usecase.UserRepoInterface, error) {
 	var userRepo usecase.UserRepoInterface
 	var err error

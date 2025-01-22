@@ -6,6 +6,7 @@ import (
 	"github.com/MisterMaks/go-yandex-shortener/internal/app/usecase"
 )
 
+// NewAppRepo init repo.
 func NewAppRepo(
 	db *sql.DB,
 	filename string,
