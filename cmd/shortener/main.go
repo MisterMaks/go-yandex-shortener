@@ -160,6 +160,46 @@ func connectPostgres(dsn string) (*sql.DB, error) {
 	return db, nil
 }
 
+func runServer(server *http.Server, enableHTTPS bool) {
+	var err error
+
+	if enableHTTPS {
+		var certPEMBytes, privateKeyPEMBytes []byte
+
+		certPEMBytes, privateKeyPEMBytes, err = certcreator.Create()
+		if err != nil {
+			logger.Log.Fatal("Failed to create certificate",
+				zap.Error(err),
+			)
+		}
+
+		var cert tls.Certificate
+		cert, err = tls.X509KeyPair(certPEMBytes, privateKeyPEMBytes)
+		if err != nil {
+			logger.Log.Fatal("Failed to parse a public/private key pair from a pair of PEM encoded data",
+				zap.Error(err),
+			)
+		}
+
+		tlsConfig := &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			MinVersion:   tls.VersionTLS12,
+		}
+
+		server.TLSConfig = tlsConfig
+
+		err = server.ListenAndServeTLS("", "")
+	} else {
+		err = server.ListenAndServe()
+	}
+
+	if err != nil && err != http.ErrServerClosed {
+		logger.Log.Fatal("Failed to start server",
+			zap.Error(err),
+		)
+	}
+}
+
 func main() {
 	printBuildInfo()
 
@@ -178,25 +218,8 @@ func main() {
 	)
 
 	var db *sql.DB
-	var appRepo appUsecaseInternal.AppRepoInterface
-	var userRepo userUsecaseInternal.UserRepoInterface
 
-	switch config.DatabaseDSN {
-	case "":
-		appRepo, err = appRepoInternal.NewAppRepoInmem(config.FileStoragePath, DeletedURLsFileStoragePath)
-		if err != nil {
-			logger.Log.Fatal("Failed to create appRepoInmem",
-				zap.Error(err),
-			)
-		}
-
-		userRepo, err = userRepoInternal.NewUserRepoInmem(UsersFileStoragePath)
-		if err != nil {
-			logger.Log.Fatal("Failed to create userRepoInmem",
-				zap.Error(err),
-			)
-		}
-	default:
+	if config.DatabaseDSN != "" {
 		logger.Log.Info("Applying migrations")
 		err = migrate(config.DatabaseDSN)
 		if err != nil {
@@ -219,22 +242,18 @@ func main() {
 				)
 			}
 		}()
-
-		appRepo, err = appRepoInternal.NewAppRepoPostgres(db)
-		if err != nil {
-			logger.Log.Fatal("Failed to create appRepoPostgres",
-				zap.Error(err),
-			)
-		}
-
-		userRepo, err = userRepoInternal.NewUserRepoPostgres(db)
-		if err != nil {
-			logger.Log.Fatal("Failed to create userRepoPostgres",
-				zap.Error(err),
-			)
-		}
 	}
 
+	appRepo, err := appRepoInternal.NewAppRepo(
+		db,
+		config.FileStoragePath,
+		DeletedURLsFileStoragePath,
+	)
+	if err != nil {
+		logger.Log.Fatal("Failed to create appRepo",
+			zap.Error(err),
+		)
+	}
 	defer func() {
 		err = appRepo.Close()
 		if err != nil {
@@ -244,6 +263,12 @@ func main() {
 		}
 	}()
 
+	userRepo, err := userRepoInternal.NewUserRepo(db, UsersFileStoragePath)
+	if err != nil {
+		logger.Log.Fatal("Failed to create userRepo",
+			zap.Error(err),
+		)
+	}
 	defer func() {
 		err = userRepo.Close()
 		if err != nil {
@@ -320,43 +345,8 @@ func main() {
 		Addr:    config.ServerAddress,
 		Handler: r,
 	}
-	go func() {
-		if config.EnableHTTPS {
-			var certPEMBytes, privateKeyPEMBytes []byte
 
-			certPEMBytes, privateKeyPEMBytes, err = certcreator.Create()
-			if err != nil {
-				logger.Log.Fatal("Failed to create certificate",
-					zap.Error(err),
-				)
-			}
-
-			var cert tls.Certificate
-			cert, err = tls.X509KeyPair(certPEMBytes, privateKeyPEMBytes)
-			if err != nil {
-				logger.Log.Fatal("Failed to parse a public/private key pair from a pair of PEM encoded data",
-					zap.Error(err),
-				)
-			}
-
-			tlsConfig := &tls.Config{
-				Certificates: []tls.Certificate{cert},
-				MinVersion:   tls.VersionTLS12,
-			}
-
-			server.TLSConfig = tlsConfig
-
-			err = server.ListenAndServeTLS("", "")
-		} else {
-			err = server.ListenAndServe()
-		}
-
-		if err != nil && err != http.ErrServerClosed {
-			logger.Log.Fatal("Failed to start server",
-				zap.Error(err),
-			)
-		}
-	}()
+	go runServer(server, config.EnableHTTPS)
 
 	exitChan := make(chan os.Signal, 1)
 	signal.Notify(exitChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
