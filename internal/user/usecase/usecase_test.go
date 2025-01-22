@@ -113,18 +113,22 @@ func TestUserUsecase_AuthenticateOrRegister(t *testing.T) {
 		{
 			name: "existed user",
 			cookie: &http.Cookie{
-				Name:  AccessTokenKey,
-				Value: jwt,
-				Path:  "/",
+				Name:     AccessTokenKey,
+				Value:    jwt,
+				Path:     "/",
+				HttpOnly: true,
+				Secure:   true,
 			},
 			expectedUserID: existingUserID,
 		},
 		{
 			name: "bad cookie",
 			cookie: &http.Cookie{
-				Name:  AccessTokenKey,
-				Value: "tratata",
-				Path:  "/",
+				Name:     AccessTokenKey,
+				Value:    "tratata",
+				Path:     "/",
+				HttpOnly: true,
+				Secure:   true,
 			},
 			expectedUserID: newUserID,
 		},
@@ -195,24 +199,31 @@ func TestUserUsecase_Authenticate(t *testing.T) {
 		{
 			name: "user authenticated",
 			cookie: &http.Cookie{
-				Name:  AccessTokenKey,
-				Value: jwt,
-				Path:  "/",
+				Name:     AccessTokenKey,
+				Value:    jwt,
+				Path:     "/",
+				HttpOnly: true,
+				Secure:   true,
 			},
 			statusCode: http.StatusOK,
 		},
 		{
 			name: "invalid jwt",
 			cookie: &http.Cookie{
-				Name:  AccessTokenKey,
-				Value: "tratata",
-				Path:  "/",
+				Name:     AccessTokenKey,
+				Value:    "tratata",
+				Path:     "/",
+				HttpOnly: true,
+				Secure:   true,
 			},
 			statusCode: http.StatusUnauthorized,
 		},
 		{
-			name:       "invalid cookie",
-			cookie:     &http.Cookie{},
+			name: "invalid cookie",
+			cookie: &http.Cookie{
+				HttpOnly: true,
+				Secure:   true,
+			},
 			statusCode: http.StatusUnauthorized,
 		},
 	}
