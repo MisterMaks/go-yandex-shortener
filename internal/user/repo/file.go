@@ -3,8 +3,9 @@ package repo
 import (
 	"bufio"
 	"encoding/json"
-	"github.com/MisterMaks/go-yandex-shortener/internal/user"
 	"os"
+
+	"github.com/MisterMaks/go-yandex-shortener/internal/user"
 )
 
 type producer struct {

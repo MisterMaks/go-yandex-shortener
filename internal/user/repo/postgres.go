@@ -28,6 +28,11 @@ func (urp *UserRepoPostgres) CreateUser() (*user.User, error) {
 	return u, nil
 }
 
+// Close finishes working with the db.
+func (urp *UserRepoPostgres) Close() error {
+	return urp.db.Close()
+}
+
 // GetCountUsers get count users.
 func (urp *UserRepoPostgres) GetCountUsers() (int, error) {
 	query := `SELECT count(id) FROM "user";`

@@ -35,6 +35,7 @@ type Claims struct {
 type UserRepoInterface interface {
 	CreateUser() (*user.User, error)
 	GetCountUsers() (int, error) // get count users
+	Close() error
 }
 
 // UserUsecase business logic struct.

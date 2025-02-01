@@ -156,6 +156,11 @@ func (arp *AppRepoPostgres) DeleteUserURLs(urls []*app.URL) error {
 	return err
 }
 
+// Close finishes working with the db.
+func (arp *AppRepoPostgres) Close() error {
+	return arp.db.Close()
+}
+
 // GetCountURLs get count URLs.
 func (arp *AppRepoPostgres) GetCountURLs() (int, error) {
 	query := `SELECT count(url) FROM url;`

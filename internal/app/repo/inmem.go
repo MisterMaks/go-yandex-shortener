@@ -129,15 +129,21 @@ func (ari *AppRepoInmem) CheckIDExistence(id string) (bool, error) {
 
 // Close finishes working with the file.
 func (ari *AppRepoInmem) Close() error {
+	var err error
+
 	if ari.producer != nil {
-		return ari.producer.close()
+		err = ari.producer.close()
+	}
+
+	if err != nil {
+		return err
 	}
 
 	if ari.deleteURLProducer != nil {
-		return ari.deleteURLProducer.close()
+		err = ari.deleteURLProducer.close()
 	}
 
-	return nil
+	return err
 }
 
 // GetOrCreateURLs gets created URLs and saves new URLs and returns them.
@@ -145,12 +151,13 @@ func (ari *AppRepoInmem) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error) {
 	ari.mu.Lock()
 	defer ari.mu.Unlock()
 
+LOOP:
 	for _, url := range urls {
 		for _, ariURL := range ari.urls {
 			if url.URL == ariURL.URL {
 				url.ID = ariURL.ID
 				url.UserID = ariURL.UserID
-				continue
+				continue LOOP
 			}
 		}
 
