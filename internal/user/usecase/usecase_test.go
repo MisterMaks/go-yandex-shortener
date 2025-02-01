@@ -96,7 +96,7 @@ func TestUserUsecase_AuthenticateOrRegister(t *testing.T) {
 	m := mocks.NewMockUserRepoInterface(ctrl)
 	m.EXPECT().CreateUser().Return(newUser, nil).AnyTimes()
 
-	u, err := NewUserUsecase(m, "secretkey", time.Second)
+	u, err := NewUserUsecase(m, "secretkey", time.Second, nil, nil)
 	require.NoError(t, err)
 
 	jwt, err := u.buildJWTString(existingUserID)
@@ -174,7 +174,7 @@ func TestUserUsecase_AuthenticateOrRegister(t *testing.T) {
 func TestUserUsecase_Authenticate(t *testing.T) {
 	existingUserID := uint(1)
 
-	u, err := NewUserUsecase(nil, "secretkey", time.Second)
+	u, err := NewUserUsecase(nil, "secretkey", time.Second, nil, nil)
 	require.NoError(t, err)
 
 	jwt, err := u.buildJWTString(existingUserID)

@@ -175,30 +175,6 @@ func runServer(server *http.Server, enableHTTPS bool) {
 	var err error
 
 	if enableHTTPS {
-		var certPEMBytes, privateKeyPEMBytes []byte
-
-		certPEMBytes, privateKeyPEMBytes, err = certcreator.Create()
-		if err != nil {
-			logger.Log.Fatal("Failed to create certificate",
-				zap.Error(err),
-			)
-		}
-
-		var cert tls.Certificate
-		cert, err = tls.X509KeyPair(certPEMBytes, privateKeyPEMBytes)
-		if err != nil {
-			logger.Log.Fatal("Failed to parse a public/private key pair from a pair of PEM encoded data",
-				zap.Error(err),
-			)
-		}
-
-		tlsConfig := &tls.Config{
-			Certificates: []tls.Certificate{cert},
-			MinVersion:   tls.VersionTLS12,
-		}
-
-		server.TLSConfig = tlsConfig
-
 		err = server.ListenAndServeTLS("", "")
 	} else {
 		err = server.ListenAndServe()
@@ -387,7 +363,6 @@ func main() {
 		Addr:    config.ServerAddress,
 	}
 
-	go runServer(server, config.EnableHTTPS)
 	var grpcServer *grpc.Server
 
 	if config.EnableHTTPS {
@@ -428,19 +403,7 @@ func main() {
 		zap.String(AddrKey, config.ServerAddress),
 	)
 
-	go func() {
-		if config.EnableHTTPS {
-			err = server.ListenAndServeTLS("", "")
-		} else {
-			err = server.ListenAndServe()
-		}
-
-		if err != nil && err != http.ErrServerClosed {
-			logger.Log.Fatal("Failed to start server",
-				zap.Error(err),
-			)
-		}
-	}()
+	go runServer(server, config.EnableHTTPS)
 
 	listen, err := net.Listen("tcp", config.GRPCAddress)
 	if err != nil {
