@@ -25,6 +25,6 @@ vendor/
 # Debug scripts
 cmd/client/
 
-local_envs.txt
+local_config.json
 
 bin/

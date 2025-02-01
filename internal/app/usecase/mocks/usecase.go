@@ -49,6 +49,20 @@ func (mr *MockAppRepoInterfaceMockRecorder) CheckIDExistence(id interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckIDExistence", reflect.TypeOf((*MockAppRepoInterface)(nil).CheckIDExistence), id)
 }
 
+// Close mocks base method.
+func (m *MockAppRepoInterface) Close() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Close indicates an expected call of Close.
+func (mr *MockAppRepoInterfaceMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockAppRepoInterface)(nil).Close))
+}
+
 // DeleteUserURLs mocks base method.
 func (m *MockAppRepoInterface) DeleteUserURLs(urls []*app.URL) error {
 	m.ctrl.T.Helper()
