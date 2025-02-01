@@ -74,7 +74,7 @@ func (agh *AppGRPCHandler) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.Pin
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 
-	return nil, nil
+	return &pb.PingResponse{}, nil
 }
 
 // GetOrCreateURLs Get (if URLs existed) or create URLs.

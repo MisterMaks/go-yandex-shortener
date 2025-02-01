@@ -71,7 +71,7 @@ type AppRepoInterface interface {
 	GetUserURLs(userID uint) ([]*app.URL, error)                     // get user URLs
 	DeleteUserURLs(urls []*app.URL) error                            // delete urls
 	Close() error
-	GetCountURLs() (int, error)                                      // get count URLs
+	GetCountURLs() (int, error) // get count URLs
 }
 
 // UserUsecaseInterface contains the necessary functions for user usecase.
@@ -204,7 +204,7 @@ func (au *AppUsecase) generateID() (string, error) {
 
 // GetOrCreateURL get created or create short URL for request URL.
 // Func generate unique short URL for rawURL, save and return it or return short URL (if rawURL existed).
-// Func return URL struct, true if rawURL is new or false if rawURL exists and error.
+// Func return URL struct, true if rawURL exists or false if rawURL is new and error.
 func (au *AppUsecase) GetOrCreateURL(rawURL string, userID uint) (*app.URL, bool, error) {
 	_, err := parseURL(rawURL)
 	if err != nil {
