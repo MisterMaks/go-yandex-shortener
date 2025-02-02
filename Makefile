@@ -18,6 +18,10 @@ test-cover:
 	@echo "-- testing with cover"
 	go test ./... -coverprofile cover.out && go tool cover -html cover.out
 
+test-cover-percentage:
+	@echo "-- testing with cover percentage"
+	go test -v -coverpkg=./... -coverprofile=cover.out -covermode=count ./... && go tool cover -func cover.out
+
 .PHONY: docker
 docker:
 	@echo "-- building docker container"
@@ -81,6 +85,7 @@ mockgen-app-delivery:
 mockgen-user-usecase:
 	@echo "-- mockgen user usecase"
 	mockgen -destination=internal/user/usecase/mocks/usecase.go -package=mocks -source=internal/user/usecase/usecase.go
+	mockgen -destination internal/user/usecase/mocks/grpc_server.go -package mocks google.golang.org/grpc ServerTransportStream
 
 .PHONY: protoc
 protoc:

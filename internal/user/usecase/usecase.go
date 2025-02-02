@@ -255,6 +255,7 @@ func (uu *UserUsecase) AuthenticateOrRegisterUnaryInterceptor(ctx context.Contex
 		header := metadata.Pairs(AccessTokenKey, accessToken)
 		err = grpc.SetHeader(ctx, header)
 		if err != nil {
+			ctxLogger.Error("Internal error", zap.Error(err))
 			return nil, status.Error(codes.Internal, "Internal error")
 		}
 
