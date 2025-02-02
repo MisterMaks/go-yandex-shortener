@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,22 +14,26 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 func TestNewUserUsecase(t *testing.T) {
-	u, err := NewUserUsecase(nil, "secretkey", time.Second)
+	u, err := NewUserUsecase(nil, "secretkey", time.Second, nil, nil)
 	require.NoError(t, err)
 	assert.Equal(t, &UserUsecase{
 		UserRepo:  nil,
 		SecretKey: "secretkey",
 		TokenExp:  time.Second,
+		grpcMethodsForAuthenticateUnaryInterceptor:           map[string]struct{}{},
+		grpcMethodsForAuthenticateOrRegisterUnaryInterceptor: map[string]struct{}{},
 	}, u)
 }
 
 func TestBuildJWTStringAndGetUserID(t *testing.T) {
 	testUserID := uint(1)
 
-	u, err := NewUserUsecase(nil, "secretkey", time.Second)
+	u, err := NewUserUsecase(nil, "secretkey", time.Second, nil, nil)
 	require.NoError(t, err)
 
 	jwtString, err := u.buildJWTString(testUserID)
@@ -50,7 +55,7 @@ func TestUserUsecase_CreateUser(t *testing.T) {
 	m := mocks.NewMockUserRepoInterface(ctrl)
 	m.EXPECT().CreateUser().Return(testUser, nil)
 
-	u, err := NewUserUsecase(m, "secretkey", time.Second)
+	u, err := NewUserUsecase(m, "secretkey", time.Second, nil, nil)
 	require.NoError(t, err)
 
 	actualUser, err := u.CreateUser()
@@ -94,7 +99,7 @@ func TestUserUsecase_AuthenticateOrRegister(t *testing.T) {
 	m := mocks.NewMockUserRepoInterface(ctrl)
 	m.EXPECT().CreateUser().Return(newUser, nil).AnyTimes()
 
-	u, err := NewUserUsecase(m, "secretkey", time.Second)
+	u, err := NewUserUsecase(m, "secretkey", time.Second, nil, nil)
 	require.NoError(t, err)
 
 	jwt, err := u.buildJWTString(existingUserID)
@@ -172,7 +177,7 @@ func TestUserUsecase_AuthenticateOrRegister(t *testing.T) {
 func TestUserUsecase_Authenticate(t *testing.T) {
 	existingUserID := uint(1)
 
-	u, err := NewUserUsecase(nil, "secretkey", time.Second)
+	u, err := NewUserUsecase(nil, "secretkey", time.Second, nil, nil)
 	require.NoError(t, err)
 
 	jwt, err := u.buildJWTString(existingUserID)
@@ -240,6 +245,92 @@ func TestUserUsecase_Authenticate(t *testing.T) {
 			err = response.Body.Close()
 			require.NoError(t, err)
 			assert.Equal(t, tt.statusCode, response.StatusCode)
+		})
+	}
+}
+
+func TestUserUsecase_AuthenticateOrRegisterUnaryInterceptor(t *testing.T) {
+	existingUserID := uint(1)
+	newUserID := uint(2)
+
+	newUser := &user.User{ID: newUserID}
+
+	// создаём контроллер
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// создаём объект-заглушку
+	m := mocks.NewMockUserRepoInterface(ctrl)
+	m.EXPECT().CreateUser().Return(newUser, nil).AnyTimes()
+
+	u, err := NewUserUsecase(m, "secretkey", time.Second, []string{"ok"}, nil)
+	require.NoError(t, err)
+
+	jwt, err := u.buildJWTString(existingUserID)
+	require.NoError(t, err)
+
+	mockSTS := mocks.NewMockServerTransportStream(ctrl)
+	mockSTS.EXPECT().SetHeader(gomock.Any()).AnyTimes()
+
+	handler := func(ctx context.Context, _ any) (any, error) {
+		handlerActualUserID, handlerErr := GetContextUserID(ctx)
+		return handlerActualUserID, handlerErr
+	}
+
+	type want struct {
+		userID uint
+		err    error
+	}
+
+	tests := []struct {
+		name       string
+		ctx        context.Context
+		methodName string
+		want       want
+	}{
+		{
+			name: "ok",
+			ctx: metadata.NewIncomingContext(
+				grpc.NewContextWithServerTransportStream(context.Background(), mockSTS),
+				metadata.MD{AccessTokenKey: []string{jwt}},
+			),
+			methodName: "ok",
+			want: want{
+				userID: existingUserID,
+				err:    nil,
+			},
+		},
+		{
+			name:       "ignoring method",
+			ctx:        grpc.NewContextWithServerTransportStream(context.Background(), mockSTS),
+			methodName: "ignoring method",
+			want: want{
+				userID: 0,
+				err:    fmt.Errorf("no user_id"),
+			},
+		},
+		{
+			name:       "new user",
+			ctx:        grpc.NewContextWithServerTransportStream(context.Background(), mockSTS),
+			methodName: "ok",
+			want: want{
+				userID: newUserID,
+				err:    nil,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actualUserID, actualErr := u.AuthenticateOrRegisterUnaryInterceptor(tt.ctx, nil, &grpc.UnaryServerInfo{FullMethod: tt.methodName}, handler)
+
+			if tt.want.err != nil {
+				assert.Error(t, actualErr)
+			} else {
+				assert.NoError(t, actualErr)
+			}
+
+			assert.Equal(t, tt.want.userID, actualUserID)
 		})
 	}
 }

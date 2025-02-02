@@ -112,6 +112,7 @@ func TestNewAppUsecase(t *testing.T) {
 					MaxLengthID:                   1,
 					deleteURLsTicker:              time.NewTicker(5 * time.Second),
 					deleteURLsChan:                make(chan *app.URL, 1024),
+					grpcMethodsForTrustedSubnetUnaryInterceptor: map[string]struct{}{},
 				},
 				wantErr: false,
 			},
@@ -187,13 +188,16 @@ func TestNewAppUsecase(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			appUsecase, err := NewAppUsecase(
 				m,
+				nil,
 				tt.args.resultAddrPrefix,
 				tt.args.countRegenerationsForLengthID,
 				tt.args.lengthID,
 				tt.args.maxLengthID,
 				nil,
+				"",
 				1024,
 				5*time.Second,
+				nil,
 			)
 			if tt.want.wantErr {
 				assert.Error(t, err)

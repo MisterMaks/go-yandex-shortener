@@ -88,7 +88,8 @@ func TestRouter(t *testing.T) {
 				h.ServeHTTP(w, r.WithContext(ctx))
 			})
 		},
-		Authenticate: func(h http.Handler) http.Handler { return h },
+		Authenticate:            func(h http.Handler) http.Handler { return h },
+		TrustedSubnetMiddleware: func(h http.Handler) http.Handler { return h },
 	}
 
 	u, err := url.ParseRequestURI(ResultAddrPrefix)

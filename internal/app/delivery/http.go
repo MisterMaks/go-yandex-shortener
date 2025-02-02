@@ -30,6 +30,7 @@ const (
 	ShortURLKey       string = "short_url"
 	RequestPathIDKey  string = "request_path_id"
 	ResponseKey       string = "response"
+	RequestKey        string = "request"
 )
 
 // AppUsecaseInterface contains the necessary functions for the business logic of app.
@@ -41,6 +42,7 @@ type AppUsecaseInterface interface {
 	GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL, userID uint) ([]app.ResponseBatchURL, error) // get created or create short URLs for request batch URLs
 	GetUserURLs(userID uint) ([]app.ResponseUserURL, error)                                              // get short and original URLs for user
 	SendDeleteUserURLsInChan(userID uint, urlIDs []string)                                               // send urls in delete chan
+	GetInternalStats() (app.InternalStats, error)                                                        // get internal stats
 }
 
 // AppHandler handlers struct.
@@ -401,7 +403,7 @@ func (ah *AppHandler) APIGetOrCreateURLs(w http.ResponseWriter, r *http.Request)
 //
 //	@Summary	Get user URLs in JSON format
 //	@Produce	json
-//	@Success	200	{object}	[]app.ResponseUserURL	"URLs created"
+//	@Success	200	{object}	[]app.ResponseUserURL	"OK"
 //	@Failure	405	{string}	string					"Method not allowed"
 //	@Failure	400	{string}	string					"Bad request"
 //	@Failure	401	{string}	string					"Unauthorized"
@@ -503,4 +505,43 @@ func (ah *AppHandler) APIDeleteUserURLs(w http.ResponseWriter, r *http.Request) 
 	ah.AppUsecase.SendDeleteUserURLsInChan(userID, req)
 
 	w.WriteHeader(http.StatusAccepted)
+}
+
+// APIGetInternalStats Get internal stats.
+//
+//	@Summary	Get internal stats
+//	@Produce	json
+//	@Success	200		{object}	app.InternalStats	"OK"
+//	@Failure	403		{string}	string		"Forbidden"
+//	@Router		/api/internal/stats [get]
+func (ah *AppHandler) APIGetInternalStats(w http.ResponseWriter, r *http.Request) {
+	handlerLogger := logger.GetContextLogger(r.Context())
+
+	handlerLogger.Info("Getting internal stats using API")
+
+	if r.Method != http.MethodGet {
+		handlerLogger.Warn("Request method is not GET", zap.String(MethodKey, r.Method))
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	internalStats, err := ah.AppUsecase.GetInternalStats()
+	if err != nil {
+		handlerLogger.Warn("Bad request",
+			zap.Error(err),
+		)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set(ContentTypeKey, ApplicationJSONKey)
+
+	enc := json.NewEncoder(w)
+	err = enc.Encode(internalStats)
+	if err != nil {
+		handlerLogger.Warn("Bad request",
+			zap.Any(ResponseKey, internalStats),
+			zap.Error(err),
+		)
+	}
 }

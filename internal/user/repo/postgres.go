@@ -32,3 +32,17 @@ func (urp *UserRepoPostgres) CreateUser() (*user.User, error) {
 func (urp *UserRepoPostgres) Close() error {
 	return urp.db.Close()
 }
+
+// GetCountUsers get count users.
+func (urp *UserRepoPostgres) GetCountUsers() (int, error) {
+	query := `SELECT count(id) FROM "user";`
+
+	var countUsers int
+
+	err := urp.db.QueryRow(query).Scan(&countUsers)
+	if err != nil {
+		return 0, err
+	}
+
+	return countUsers, nil
+}

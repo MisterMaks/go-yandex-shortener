@@ -1,0 +1,13 @@
+{
+  "details": {
+    "methodFqn": "proto.App.GetOrCreateURLs"
+  },
+  "requests": [
+    {
+      "location": "GetOrCreateURLs-request.json"
+    }
+  ],
+  "operationType": "unary",
+  "invokerName": "grpc",
+  "importStreamId": "5c05e281-274f-4e14-add1-6ce73403b650"
+}

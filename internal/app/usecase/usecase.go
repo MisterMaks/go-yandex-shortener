@@ -1,14 +1,21 @@
 package usecase
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"math/rand"
+	"net"
+	"net/http"
 	"net/url"
 	"regexp"
 	"time"
 
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 
 	"github.com/MisterMaks/go-yandex-shortener/internal/app"
 	loggerInternal "github.com/MisterMaks/go-yandex-shortener/internal/logger"
@@ -64,11 +71,19 @@ type AppRepoInterface interface {
 	GetUserURLs(userID uint) ([]*app.URL, error)                     // get user URLs
 	DeleteUserURLs(urls []*app.URL) error                            // delete urls
 	Close() error
+	GetCountURLs() (int, error) // get count URLs
+}
+
+// UserUsecaseInterface contains the necessary functions for user usecase.
+type UserUsecaseInterface interface {
+	GetCountUsers() (int, error) // get count users
 }
 
 // AppUsecase business logic struct.
 type AppUsecase struct {
 	AppRepo AppRepoInterface // storage
+
+	UserUsecase UserUsecaseInterface // user usecase
 
 	BaseURL                       string // base URL
 	CountRegenerationsForLengthID uint   // count regenerations for length ID
@@ -77,20 +92,27 @@ type AppUsecase struct {
 
 	db *sql.DB
 
+	trustedSubnet *net.IPNet
+
 	deleteURLsChan   chan *app.URL
 	deleteURLsTicker *time.Ticker
 
 	doneCh chan struct{}
+
+	grpcMethodsForTrustedSubnetUnaryInterceptor map[string]struct{}
 }
 
 // NewAppUsecase creates *AppUsecase.
 func NewAppUsecase(
 	appRepo AppRepoInterface,
+	userUsecase UserUsecaseInterface,
 	baseURL string,
 	countRegenerationsForLengthID, lengthID, maxLengthID uint,
 	db *sql.DB,
+	trustedSubnetStr string,
 	deleteURLsChanSize uint,
 	deleteURLsWaitingTime time.Duration,
+	grpcMethodsForTrustedSubnetUnaryInterceptorSl []string,
 ) (*AppUsecase, error) {
 	if lengthID == 0 {
 		return nil, ErrZeroLengthID
@@ -109,19 +131,39 @@ func NewAppUsecase(
 		return nil, ErrInvalidBaseURL
 	}
 
+	var trustedSubnet *net.IPNet
+	if trustedSubnetStr != "" {
+		_, trustedSubnet, err = net.ParseCIDR(trustedSubnetStr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	grpcMethodsForAuthenticateUnaryInterceptor := map[string]struct{}{}
+
+	for _, grpcMethod := range grpcMethodsForTrustedSubnetUnaryInterceptorSl {
+		grpcMethodsForAuthenticateUnaryInterceptor[grpcMethod] = struct{}{}
+	}
+
 	doneCh := make(chan struct{})
 
 	appUsecase := &AppUsecase{
 		AppRepo:                       appRepo,
+		UserUsecase:                   userUsecase,
 		BaseURL:                       baseURL,
 		CountRegenerationsForLengthID: countRegenerationsForLengthID,
 		LengthID:                      lengthID,
 		MaxLengthID:                   maxLengthID,
 		db:                            db,
-		deleteURLsChan:                make(chan *app.URL, deleteURLsChanSize),
-		deleteURLsTicker:              time.NewTicker(deleteURLsWaitingTime),
+
+		trustedSubnet: trustedSubnet,
+
+		deleteURLsChan:   make(chan *app.URL, deleteURLsChanSize),
+		deleteURLsTicker: time.NewTicker(deleteURLsWaitingTime),
 
 		doneCh: doneCh,
+
+		grpcMethodsForTrustedSubnetUnaryInterceptor: grpcMethodsForAuthenticateUnaryInterceptor,
 	}
 
 	go appUsecase.deleteUserURLs()
@@ -162,7 +204,7 @@ func (au *AppUsecase) generateID() (string, error) {
 
 // GetOrCreateURL get created or create short URL for request URL.
 // Func generate unique short URL for rawURL, save and return it or return short URL (if rawURL existed).
-// Func return URL struct, true if rawURL is new or false if rawURL exists and error.
+// Func return URL struct, true if rawURL exists or false if rawURL is new and error.
 func (au *AppUsecase) GetOrCreateURL(rawURL string, userID uint) (*app.URL, bool, error) {
 	_, err := parseURL(rawURL)
 	if err != nil {
@@ -302,8 +344,86 @@ func (au *AppUsecase) deleteUserURLs() {
 	}
 }
 
+// GetInternalStats get internal stats.
+func (au *AppUsecase) GetInternalStats() (app.InternalStats, error) {
+	countURLs, err := au.AppRepo.GetCountURLs()
+	if err != nil {
+		return app.InternalStats{}, err
+	}
+
+	countUsers, err := au.UserUsecase.GetCountUsers()
+	if err != nil {
+		return app.InternalStats{}, err
+	}
+
+	return app.InternalStats{URLs: countURLs, Users: countUsers}, nil
+}
+
 // Close closing channels and stop executing requests/tasks.
 func (au *AppUsecase) Close() error {
 	close(au.doneCh)
 	return nil
+}
+
+// TrustedSubnetMiddleware is middleware for check trusted ip.
+func (au *AppUsecase) TrustedSubnetMiddleware(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if au.trustedSubnet == nil {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		ipStr := r.Header.Get("X-Real-IP")
+
+		ip := net.ParseIP(ipStr)
+
+		if ip == nil {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		ok := au.trustedSubnet.Contains(ip)
+		if !ok {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		h.ServeHTTP(w, r)
+	})
+}
+
+// TrustedSubnetUnaryInterceptor is interceptor for check trusted ip.
+func (au *AppUsecase) TrustedSubnetUnaryInterceptor(ctx context.Context, req any, si *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+	if _, ok := au.grpcMethodsForTrustedSubnetUnaryInterceptor[si.FullMethod]; !ok {
+		return handler(ctx, req)
+	}
+
+	if au.trustedSubnet == nil {
+		return nil, status.Error(codes.PermissionDenied, "permission denied")
+	}
+
+	var ipStr string
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		values := md.Get("X-Real-IP")
+		if len(values) > 0 {
+			ipStr = values[0]
+		}
+	}
+
+	if len(ipStr) == 0 {
+		return nil, status.Error(codes.PermissionDenied, "permission denied")
+	}
+
+	ip := net.ParseIP(ipStr)
+
+	if ip == nil {
+		return nil, status.Error(codes.PermissionDenied, "permission denied")
+	}
+
+	ok := au.trustedSubnet.Contains(ip)
+	if !ok {
+		return nil, status.Error(codes.PermissionDenied, "permission denied")
+	}
+
+	return handler(ctx, req)
 }
