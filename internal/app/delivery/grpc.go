@@ -172,7 +172,7 @@ func (agh *AppGRPCHandler) DeleteUserURLs(ctx context.Context, in *pb.DeleteUser
 
 	agh.AppUsecase.SendDeleteUserURLsInChan(userID, in.UrlIds)
 
-	return nil, nil
+	return &pb.DeleteUserURLsResponse{}, nil
 }
 
 // GetInternalStats Get internal stats.
