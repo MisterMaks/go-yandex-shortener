@@ -92,7 +92,7 @@ func TestAppRepo_CreateUser(t *testing.T) {
 	userRepo, err := NewUserRepoPostgres(te.DB)
 	require.NoError(t, err, "Failed to run NewUserRepoPostgres()")
 
-	u, err := userRepo.CreateUser()
+	u, err := userRepo.CreateUser(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, u)
 }

@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"context"
 	"os"
 	"sync"
 	"testing"
@@ -64,7 +65,7 @@ func TestUserRepoInmem_CreateUser(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, r)
 
-	u, err := r.CreateUser()
+	u, err := r.CreateUser(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, u)
 }

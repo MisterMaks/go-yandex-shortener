@@ -76,7 +76,7 @@ type AppRepoInterface interface {
 
 // UserUsecaseInterface contains the necessary functions for user usecase.
 type UserUsecaseInterface interface {
-	GetCountUsers() (int, error) // get count users
+	GetCountUsers(ctx context.Context) (int, error) // get count users
 }
 
 // AppUsecase business logic struct.
@@ -353,7 +353,7 @@ func (au *AppUsecase) GetInternalStats(ctx context.Context) (app.InternalStats, 
 		return app.InternalStats{}, err
 	}
 
-	countUsers, err := au.UserUsecase.GetCountUsers()
+	countUsers, err := au.UserUsecase.GetCountUsers(ctx)
 	if err != nil {
 		return app.InternalStats{}, err
 	}

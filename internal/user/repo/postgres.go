@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/MisterMaks/go-yandex-shortener/internal/user"
@@ -17,10 +18,10 @@ func NewUserRepoPostgres(db *sql.DB) (*UserRepoPostgres, error) {
 }
 
 // CreateUser create user in DB.
-func (urp *UserRepoPostgres) CreateUser() (*user.User, error) {
+func (urp *UserRepoPostgres) CreateUser(ctx context.Context) (*user.User, error) {
 	query := `INSERT INTO "user" DEFAULT VALUES RETURNING id;`
 	var id uint
-	err := urp.db.QueryRow(query).Scan(&id)
+	err := urp.db.QueryRowContext(ctx, query).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
@@ -34,12 +35,12 @@ func (urp *UserRepoPostgres) Close() error {
 }
 
 // GetCountUsers get count users.
-func (urp *UserRepoPostgres) GetCountUsers() (int, error) {
+func (urp *UserRepoPostgres) GetCountUsers(ctx context.Context) (int, error) {
 	query := `SELECT count(id) FROM "user";`
 
 	var countUsers int
 
-	err := urp.db.QueryRow(query).Scan(&countUsers)
+	err := urp.db.QueryRowContext(ctx, query).Scan(&countUsers)
 	if err != nil {
 		return 0, err
 	}

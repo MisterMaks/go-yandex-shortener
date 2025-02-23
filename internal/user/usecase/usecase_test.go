@@ -53,12 +53,12 @@ func TestUserUsecase_CreateUser(t *testing.T) {
 
 	// создаём объект-заглушку
 	m := mocks.NewMockUserRepoInterface(ctrl)
-	m.EXPECT().CreateUser().Return(testUser, nil)
+	m.EXPECT().CreateUser(gomock.Any()).Return(testUser, nil)
 
 	u, err := NewUserUsecase(m, "secretkey", time.Second, nil, nil)
 	require.NoError(t, err)
 
-	actualUser, err := u.CreateUser()
+	actualUser, err := u.CreateUser(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, testUser, actualUser)
 }
@@ -97,7 +97,7 @@ func TestUserUsecase_AuthenticateOrRegister(t *testing.T) {
 
 	// создаём объект-заглушку
 	m := mocks.NewMockUserRepoInterface(ctrl)
-	m.EXPECT().CreateUser().Return(newUser, nil).AnyTimes()
+	m.EXPECT().CreateUser(gomock.Any()).Return(newUser, nil).AnyTimes()
 
 	u, err := NewUserUsecase(m, "secretkey", time.Second, nil, nil)
 	require.NoError(t, err)
@@ -261,7 +261,7 @@ func TestUserUsecase_AuthenticateOrRegisterUnaryInterceptor(t *testing.T) {
 
 	// создаём объект-заглушку
 	m := mocks.NewMockUserRepoInterface(ctrl)
-	m.EXPECT().CreateUser().Return(newUser, nil).AnyTimes()
+	m.EXPECT().CreateUser(gomock.Any()).Return(newUser, nil).AnyTimes()
 
 	u, err := NewUserUsecase(m, "secretkey", time.Second, []string{"ok"}, nil)
 	require.NoError(t, err)

@@ -33,8 +33,8 @@ type Claims struct {
 
 // UserRepoInterface contains the necessary functions for storage.
 type UserRepoInterface interface {
-	CreateUser() (*user.User, error)
-	GetCountUsers() (int, error) // get count users
+	CreateUser(ctx context.Context) (*user.User, error)
+	GetCountUsers(ctx context.Context) (int, error) // get count users
 	Close() error
 }
 
@@ -117,8 +117,8 @@ func (uu *UserUsecase) getUserID(tokenString string) (uint, error) {
 }
 
 // CreateUser create user.
-func (uu *UserUsecase) CreateUser() (*user.User, error) {
-	return uu.UserRepo.CreateUser()
+func (uu *UserUsecase) CreateUser(ctx context.Context) (*user.User, error) {
+	return uu.UserRepo.CreateUser(ctx)
 }
 
 // AuthenticateOrRegister auths or registers user using JWT token in Cookie.
@@ -132,7 +132,7 @@ func (uu *UserUsecase) AuthenticateOrRegister(h http.Handler) http.Handler {
 		var accessToken string
 
 		if err != nil {
-			u, err = uu.CreateUser()
+			u, err = uu.CreateUser(r.Context())
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
@@ -158,7 +158,7 @@ func (uu *UserUsecase) AuthenticateOrRegister(h http.Handler) http.Handler {
 		value := cookie.Value
 		userID, err := uu.getUserID(value)
 		if err != nil {
-			u, err = uu.CreateUser()
+			u, err = uu.CreateUser(r.Context())
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
@@ -242,7 +242,7 @@ func (uu *UserUsecase) AuthenticateOrRegisterUnaryInterceptor(ctx context.Contex
 	}
 
 	if len(token) == 0 || err != nil {
-		u, err = uu.CreateUser()
+		u, err = uu.CreateUser(ctx)
 		if err != nil {
 			return nil, status.Error(codes.Unknown, "Bad request")
 		}
@@ -321,6 +321,6 @@ func GetContextUserID(ctx context.Context) (uint, error) {
 }
 
 // GetCountUsers get count users.
-func (uu *UserUsecase) GetCountUsers() (int, error) {
-	return uu.UserRepo.GetCountUsers()
+func (uu *UserUsecase) GetCountUsers(ctx context.Context) (int, error) {
+	return uu.UserRepo.GetCountUsers(ctx)
 }

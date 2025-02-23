@@ -177,16 +177,16 @@ func (m *MockUserUsecaseInterface) EXPECT() *MockUserUsecaseInterfaceMockRecorde
 }
 
 // GetCountUsers mocks base method.
-func (m *MockUserUsecaseInterface) GetCountUsers() (int, error) {
+func (m *MockUserUsecaseInterface) GetCountUsers(ctx context.Context) (int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetCountUsers")
+	ret := m.ctrl.Call(m, "GetCountUsers", ctx)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetCountUsers indicates an expected call of GetCountUsers.
-func (mr *MockUserUsecaseInterfaceMockRecorder) GetCountUsers() *gomock.Call {
+func (mr *MockUserUsecaseInterfaceMockRecorder) GetCountUsers(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCountUsers", reflect.TypeOf((*MockUserUsecaseInterface)(nil).GetCountUsers))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCountUsers", reflect.TypeOf((*MockUserUsecaseInterface)(nil).GetCountUsers), ctx)
 }

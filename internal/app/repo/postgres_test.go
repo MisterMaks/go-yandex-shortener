@@ -97,7 +97,7 @@ func TestAppRepoPostgres_GetOrCreateURL(t *testing.T) {
 	ur, err := userRepoInternal.NewUserRepoPostgres(te.DB)
 	require.NoError(t, err, "Failed to run NewAppRepoPostgres()")
 
-	user, err := ur.CreateUser()
+	user, err := ur.CreateUser(context.Background())
 	require.NoError(t, err)
 
 	testID := "1"
@@ -110,7 +110,7 @@ func TestAppRepoPostgres_GetOrCreateURL(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, testURL, actualURL)
 
-	user2, err := ur.CreateUser()
+	user2, err := ur.CreateUser(context.Background())
 	require.NoError(t, err)
 
 	actualURL, err = r.GetOrCreateURL(context.Background(), "2", testURLStr, user2.ID)
@@ -131,7 +131,7 @@ func TestAppRepoPostgres_GetURL(t *testing.T) {
 	ur, err := userRepoInternal.NewUserRepoPostgres(te.DB)
 	require.NoError(t, err, "Failed to run NewAppRepoPostgres()")
 
-	user, err := ur.CreateUser()
+	user, err := ur.CreateUser(context.Background())
 	require.NoError(t, err)
 
 	testID := "1"
@@ -161,7 +161,7 @@ func TestAppRepoPostgres_CheckIDExistence(t *testing.T) {
 	ur, err := userRepoInternal.NewUserRepoPostgres(te.DB)
 	require.NoError(t, err, "Failed to run NewAppRepoPostgres()")
 
-	user, err := ur.CreateUser()
+	user, err := ur.CreateUser(context.Background())
 	require.NoError(t, err)
 
 	testID := "1"
@@ -207,13 +207,13 @@ func TestAppRepoPostgres_GetOrCreateURLs(t *testing.T) {
 	ur, err := userRepoInternal.NewUserRepoPostgres(te.DB)
 	require.NoError(t, err, "Failed to run NewAppRepoPostgres()")
 
-	user, err := ur.CreateUser()
+	user, err := ur.CreateUser(context.Background())
 	require.NoError(t, err)
 
-	user2, err := ur.CreateUser()
+	user2, err := ur.CreateUser(context.Background())
 	require.NoError(t, err)
 
-	user3, err := ur.CreateUser()
+	user3, err := ur.CreateUser(context.Background())
 	require.NoError(t, err)
 
 	testURLs := []*app.URL{
@@ -247,10 +247,10 @@ func TestAppRepoPostgres_GetUserURLs(t *testing.T) {
 	ur, err := userRepoInternal.NewUserRepoPostgres(te.DB)
 	require.NoError(t, err, "Failed to run NewAppRepoPostgres()")
 
-	user, err := ur.CreateUser()
+	user, err := ur.CreateUser(context.Background())
 	require.NoError(t, err)
 
-	user2, err := ur.CreateUser()
+	user2, err := ur.CreateUser(context.Background())
 	require.NoError(t, err)
 
 	testURLs := []*app.URL{
@@ -282,7 +282,7 @@ func TestAppRepoPostgres_DeleteUserURLs(t *testing.T) {
 	ur, err := userRepoInternal.NewUserRepoPostgres(te.DB)
 	require.NoError(t, err, "Failed to run NewAppRepoPostgres()")
 
-	user, err := ur.CreateUser()
+	user, err := ur.CreateUser(context.Background())
 	require.NoError(t, err)
 
 	testURLs := []*app.URL{
