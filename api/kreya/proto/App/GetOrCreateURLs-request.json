@@ -1,0 +1,12 @@
+{
+  "urls": [
+    {
+      "correlationId": "{{ faker.random.uuid }}",
+      "originalUrl": "Computers & Computers Assistant matrices"
+    },
+    {
+      "correlationId": "{{ faker.random.uuid }}",
+      "originalUrl": "Innovative"
+    }
+  ]
+}

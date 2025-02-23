@@ -1,6 +1,7 @@
 package delivery
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,17 +31,19 @@ const (
 	ShortURLKey       string = "short_url"
 	RequestPathIDKey  string = "request_path_id"
 	ResponseKey       string = "response"
+	RequestKey        string = "request"
 )
 
 // AppUsecaseInterface contains the necessary functions for the business logic of app.
 type AppUsecaseInterface interface {
-	GetOrCreateURL(rawURL string, userID uint) (*app.URL, bool, error)                                   // get created or create short URL for request URL
-	GetURL(id string) (*app.URL, error)                                                                  // get original URL for short URL
-	GenerateShortURL(id string) string                                                                   // generate short URL
-	Ping() error                                                                                         // ping database
-	GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL, userID uint) ([]app.ResponseBatchURL, error) // get created or create short URLs for request batch URLs
-	GetUserURLs(userID uint) ([]app.ResponseUserURL, error)                                              // get short and original URLs for user
-	SendDeleteUserURLsInChan(userID uint, urlIDs []string)                                               // send urls in delete chan
+	GetOrCreateURL(ctx context.Context, rawURL string, userID uint) (*app.URL, bool, error)                                   // get created or create short URL for request URL
+	GetURL(ctx context.Context, id string) (*app.URL, error)                                                                  // get original URL for short URL
+	GenerateShortURL(id string) string                                                                                        // generate short URL
+	Ping(ctx context.Context) error                                                                                           // ping database
+	GetOrCreateURLs(ctx context.Context, requestBatchURLs []app.RequestBatchURL, userID uint) ([]app.ResponseBatchURL, error) // get created or create short URLs for request batch URLs
+	GetUserURLs(ctx context.Context, userID uint) ([]app.ResponseUserURL, error)                                              // get short and original URLs for user
+	SendDeleteUserURLsInChan(userID uint, urlIDs []string)                                                                    // send urls in delete chan
+	GetInternalStats(ctx context.Context) (app.InternalStats, error)                                                          // get internal stats
 }
 
 // AppHandler handlers struct.
@@ -110,7 +113,7 @@ func (ah *AppHandler) GetOrCreateURL(w http.ResponseWriter, r *http.Request) {
 
 	bodyStr := string(body)
 
-	url, exists, err := ah.AppUsecase.GetOrCreateURL(bodyStr, userID)
+	url, exists, err := ah.AppUsecase.GetOrCreateURL(r.Context(), bodyStr, userID)
 	if err != nil {
 		handlerLogger.Warn("Bad request",
 			zap.String(RequestBodyStrKey, bodyStr),
@@ -197,7 +200,7 @@ func (ah *AppHandler) APIGetOrCreateURL(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	url, exists, err := ah.AppUsecase.GetOrCreateURL(req.URL, userID)
+	url, exists, err := ah.AppUsecase.GetOrCreateURL(r.Context(), req.URL, userID)
 	if err != nil {
 		handlerLogger.Warn("Bad request",
 			zap.String(URLKey, req.URL),
@@ -263,7 +266,7 @@ func (ah *AppHandler) RedirectToURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	url, err := ah.AppUsecase.GetURL(id)
+	url, err := ah.AppUsecase.GetURL(r.Context(), id)
 	if err != nil {
 		handlerLogger.Warn("Bad request",
 			zap.String(RequestPathIDKey, id),
@@ -306,7 +309,7 @@ func (ah *AppHandler) Ping(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := ah.AppUsecase.Ping()
+	err := ah.AppUsecase.Ping(r.Context())
 	if err != nil {
 		handlerLogger.Error("Failed to ping DB",
 			zap.Error(err),
@@ -373,7 +376,7 @@ func (ah *AppHandler) APIGetOrCreateURLs(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	resp, err := ah.AppUsecase.GetOrCreateURLs(req, userID)
+	resp, err := ah.AppUsecase.GetOrCreateURLs(r.Context(), req, userID)
 	if err != nil {
 		handlerLogger.Warn("Bad request",
 			zap.Any(URLsKey, req),
@@ -401,7 +404,7 @@ func (ah *AppHandler) APIGetOrCreateURLs(w http.ResponseWriter, r *http.Request)
 //
 //	@Summary	Get user URLs in JSON format
 //	@Produce	json
-//	@Success	200	{object}	[]app.ResponseUserURL	"URLs created"
+//	@Success	200	{object}	[]app.ResponseUserURL	"OK"
 //	@Failure	405	{string}	string					"Method not allowed"
 //	@Failure	400	{string}	string					"Bad request"
 //	@Failure	401	{string}	string					"Unauthorized"
@@ -428,7 +431,7 @@ func (ah *AppHandler) APIGetUserURLs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := ah.AppUsecase.GetUserURLs(userID)
+	resp, err := ah.AppUsecase.GetUserURLs(r.Context(), userID)
 	if err != nil {
 		handlerLogger.Warn("Bad request", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
@@ -503,4 +506,43 @@ func (ah *AppHandler) APIDeleteUserURLs(w http.ResponseWriter, r *http.Request) 
 	ah.AppUsecase.SendDeleteUserURLsInChan(userID, req)
 
 	w.WriteHeader(http.StatusAccepted)
+}
+
+// APIGetInternalStats Get internal stats.
+//
+//	@Summary	Get internal stats
+//	@Produce	json
+//	@Success	200		{object}	app.InternalStats	"OK"
+//	@Failure	403		{string}	string		"Forbidden"
+//	@Router		/api/internal/stats [get]
+func (ah *AppHandler) APIGetInternalStats(w http.ResponseWriter, r *http.Request) {
+	handlerLogger := logger.GetContextLogger(r.Context())
+
+	handlerLogger.Info("Getting internal stats using API")
+
+	if r.Method != http.MethodGet {
+		handlerLogger.Warn("Request method is not GET", zap.String(MethodKey, r.Method))
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	internalStats, err := ah.AppUsecase.GetInternalStats(r.Context())
+	if err != nil {
+		handlerLogger.Warn("Bad request",
+			zap.Error(err),
+		)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set(ContentTypeKey, ApplicationJSONKey)
+
+	enc := json.NewEncoder(w)
+	err = enc.Encode(internalStats)
+	if err != nil {
+		handlerLogger.Warn("Bad request",
+			zap.Any(ResponseKey, internalStats),
+			zap.Error(err),
+		)
+	}
 }

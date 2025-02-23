@@ -25,3 +25,9 @@ type ResponseUserURL struct {
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
 }
+
+// InternalStats struct for internal stats
+type InternalStats struct {
+	URLs  int `json:"urls"`
+	Users int `json:"users"`
+}

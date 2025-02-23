@@ -112,12 +112,12 @@ func TestAppHandler_GetOrCreateURL(t *testing.T) {
 
 	// гарантируем, что заглушка
 	// при вызове с аргументом "Key" вернёт "Value"
-	m.EXPECT().GetOrCreateURL(TestValidURL, gomock.Any()).Return(&app.URL{
+	m.EXPECT().GetOrCreateURL(gomock.Any(), TestValidURL, gomock.Any()).Return(&app.URL{
 		ID:     TestID,
 		URL:    TestValidURL,
 		UserID: TestUserID,
 	}, false, nil).AnyTimes()
-	m.EXPECT().GetOrCreateURL(gomock.Any(), gomock.Any()).Return(nil, false, ErrTestInvalidURL).AnyTimes()
+	m.EXPECT().GetOrCreateURL(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, false, ErrTestInvalidURL).AnyTimes()
 
 	m.EXPECT().GenerateShortURL(gomock.Any()).DoAndReturn(
 		func(id string) string {
@@ -235,12 +235,12 @@ func TestAppHandler_APIGetOrCreateURL(t *testing.T) {
 
 	// гарантируем, что заглушка
 	// при вызове с аргументом "Key" вернёт "Value"
-	m.EXPECT().GetOrCreateURL(TestValidURL, gomock.Any()).Return(&app.URL{
+	m.EXPECT().GetOrCreateURL(gomock.Any(), TestValidURL, gomock.Any()).Return(&app.URL{
 		ID:     TestID,
 		URL:    TestValidURL,
 		UserID: TestUserID,
 	}, false, nil).AnyTimes()
-	m.EXPECT().GetOrCreateURL(gomock.Any(), gomock.Any()).Return(nil, false, ErrTestInvalidURL).AnyTimes()
+	m.EXPECT().GetOrCreateURL(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, false, ErrTestInvalidURL).AnyTimes()
 
 	m.EXPECT().GenerateShortURL(gomock.Any()).DoAndReturn(
 		func(id string) string {
@@ -351,11 +351,11 @@ func TestAppHandler_RedirectToURL(t *testing.T) {
 
 	// гарантируем, что заглушка
 	// при вызове с аргументом "Key" вернёт "Value"
-	m.EXPECT().GetURL(TestID).Return(&app.URL{
+	m.EXPECT().GetURL(gomock.Any(), TestID).Return(&app.URL{
 		ID:  TestID,
 		URL: TestValidURL,
 	}, nil).AnyTimes()
-	m.EXPECT().GetURL(gomock.Any()).Return(nil, ErrTestIDNotFound).AnyTimes()
+	m.EXPECT().GetURL(gomock.Any(), gomock.Any()).Return(nil, ErrTestIDNotFound).AnyTimes()
 
 	appHandler := NewAppHandler(m)
 
@@ -419,7 +419,7 @@ func TestAppHandler_Ping(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := mocks.NewMockAppUsecaseInterface(ctrl)
-			m.EXPECT().Ping().Return(tt.usecasePingError).AnyTimes()
+			m.EXPECT().Ping(gomock.Any()).Return(tt.usecasePingError).AnyTimes()
 
 			appHandler := NewAppHandler(m)
 
@@ -540,7 +540,7 @@ func TestAppHandler_APIGetOrCreateURLs(t *testing.T) {
 		},
 	}
 
-	m.EXPECT().GetOrCreateURLs(requestBatchURLs, contextUserID).Return(responseBatchURLs, nil).AnyTimes()
+	m.EXPECT().GetOrCreateURLs(gomock.Any(), requestBatchURLs, contextUserID).Return(responseBatchURLs, nil).AnyTimes()
 
 	appHandler := NewAppHandler(m)
 
@@ -667,7 +667,7 @@ func TestAppHandler_APIGetUserURLs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := mocks.NewMockAppUsecaseInterface(ctrl)
-			m.EXPECT().GetUserURLs(tt.usecaseGetUserURLsResponse.userID).
+			m.EXPECT().GetUserURLs(gomock.Any(), tt.usecaseGetUserURLsResponse.userID).
 				Return(
 					tt.usecaseGetUserURLsResponse.userURLs,
 					tt.usecaseGetUserURLsResponse.err,

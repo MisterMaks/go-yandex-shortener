@@ -5,6 +5,7 @@
 package mocks
 
 import (
+	context "context"
 	reflect "reflect"
 
 	user "github.com/MisterMaks/go-yandex-shortener/internal/user"
@@ -49,16 +50,31 @@ func (mr *MockUserRepoInterfaceMockRecorder) Close() *gomock.Call {
 }
 
 // CreateUser mocks base method.
-func (m *MockUserRepoInterface) CreateUser() (*user.User, error) {
+func (m *MockUserRepoInterface) CreateUser(ctx context.Context) (*user.User, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateUser")
+	ret := m.ctrl.Call(m, "CreateUser", ctx)
 	ret0, _ := ret[0].(*user.User)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CreateUser indicates an expected call of CreateUser.
-func (mr *MockUserRepoInterfaceMockRecorder) CreateUser() *gomock.Call {
+func (mr *MockUserRepoInterfaceMockRecorder) CreateUser(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*MockUserRepoInterface)(nil).CreateUser))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*MockUserRepoInterface)(nil).CreateUser), ctx)
+}
+
+// GetCountUsers mocks base method.
+func (m *MockUserRepoInterface) GetCountUsers(ctx context.Context) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCountUsers", ctx)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCountUsers indicates an expected call of GetCountUsers.
+func (mr *MockUserRepoInterfaceMockRecorder) GetCountUsers(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCountUsers", reflect.TypeOf((*MockUserRepoInterface)(nil).GetCountUsers), ctx)
 }

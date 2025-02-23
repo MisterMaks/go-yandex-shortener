@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"context"
 	"errors"
 	"sync"
 
@@ -83,7 +84,7 @@ func NewAppRepoInmem(filename string, deletedURLsFilename string) (*AppRepoInmem
 }
 
 // GetOrCreateURL get saved URL or creates new URL and save it in file.
-func (ari *AppRepoInmem) GetOrCreateURL(id, rawURL string, userID uint) (*app.URL, error) {
+func (ari *AppRepoInmem) GetOrCreateURL(ctx context.Context, id, rawURL string, userID uint) (*app.URL, error) {
 	ari.mu.Lock()
 	defer ari.mu.Unlock()
 	for _, url := range ari.urls {
@@ -104,7 +105,7 @@ func (ari *AppRepoInmem) GetOrCreateURL(id, rawURL string, userID uint) (*app.UR
 }
 
 // GetURL get URL with ID.
-func (ari *AppRepoInmem) GetURL(id string) (*app.URL, error) {
+func (ari *AppRepoInmem) GetURL(ctx context.Context, id string) (*app.URL, error) {
 	ari.mu.RLock()
 	defer ari.mu.RUnlock()
 	for _, url := range ari.urls {
@@ -116,7 +117,7 @@ func (ari *AppRepoInmem) GetURL(id string) (*app.URL, error) {
 }
 
 // CheckIDExistence check URL ID existence.
-func (ari *AppRepoInmem) CheckIDExistence(id string) (bool, error) {
+func (ari *AppRepoInmem) CheckIDExistence(ctx context.Context, id string) (bool, error) {
 	ari.mu.RLock()
 	defer ari.mu.RUnlock()
 	for _, url := range ari.urls {
@@ -147,7 +148,7 @@ func (ari *AppRepoInmem) Close() error {
 }
 
 // GetOrCreateURLs gets created URLs and saves new URLs and returns them.
-func (ari *AppRepoInmem) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error) {
+func (ari *AppRepoInmem) GetOrCreateURLs(ctx context.Context, urls []*app.URL) ([]*app.URL, error) {
 	ari.mu.Lock()
 	defer ari.mu.Unlock()
 
@@ -175,7 +176,7 @@ LOOP:
 }
 
 // GetUserURLs gets user URLs.
-func (ari *AppRepoInmem) GetUserURLs(userID uint) ([]*app.URL, error) {
+func (ari *AppRepoInmem) GetUserURLs(ctx context.Context, userID uint) ([]*app.URL, error) {
 	ari.mu.RLock()
 	defer ari.mu.RUnlock()
 
@@ -190,7 +191,7 @@ func (ari *AppRepoInmem) GetUserURLs(userID uint) ([]*app.URL, error) {
 }
 
 // DeleteUserURLs delete user URLs.
-func (ari *AppRepoInmem) DeleteUserURLs(urls []*app.URL) error {
+func (ari *AppRepoInmem) DeleteUserURLs(ctx context.Context, urls []*app.URL) error {
 	ari.mu.Lock()
 	defer ari.mu.Unlock()
 
@@ -211,4 +212,14 @@ func (ari *AppRepoInmem) DeleteUserURLs(urls []*app.URL) error {
 	}
 
 	return nil
+}
+
+// GetCountURLs get count URLs.
+func (ari *AppRepoInmem) GetCountURLs(ctx context.Context) (int, error) {
+	ari.mu.RLock()
+	defer ari.mu.RUnlock()
+
+	countURLs := len(ari.urls)
+
+	return countURLs, nil
 }

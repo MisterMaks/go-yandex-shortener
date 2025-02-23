@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"context"
 	"os"
 	"strconv"
 	"sync"
@@ -106,7 +107,7 @@ func TestAppRepoInmem_GetOrCreateURL(t *testing.T) {
 				mu:       sync.RWMutex{},
 				producer: producer,
 			}
-			url, err := ari.GetOrCreateURL(tt.args.id, tt.args.rawURL, tt.args.userID)
+			url, err := ari.GetOrCreateURL(context.Background(), tt.args.id, tt.args.rawURL, tt.args.userID)
 			if tt.want.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -173,7 +174,7 @@ func TestAppRepoInmem_GetURL(t *testing.T) {
 				urls: tt.fields.urls,
 				mu:   sync.RWMutex{},
 			}
-			url, err := ari.GetURL(tt.args.id)
+			url, err := ari.GetURL(context.Background(), tt.args.id)
 			if tt.want.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -248,7 +249,7 @@ func TestAppRepoInmem_CheckIDExistence(t *testing.T) {
 				mu:       sync.RWMutex{},
 				producer: producer,
 			}
-			checked, err := ari.CheckIDExistence(tt.args.id)
+			checked, err := ari.CheckIDExistence(context.Background(), tt.args.id)
 			if tt.want.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -357,7 +358,7 @@ func TestAppRepoInmem_GetOrCreateURLs(t *testing.T) {
 
 	defer func() { err = appRepoInMem.Close(); require.NoError(t, err) }()
 
-	actualURLs, err := appRepoInMem.GetOrCreateURLs(urls)
+	actualURLs, err := appRepoInMem.GetOrCreateURLs(context.Background(), urls)
 	require.NoError(t, err)
 	assert.Equal(t, expectedURLs, actualURLs)
 }
@@ -397,10 +398,10 @@ func TestAppRepoInmem_GetUserURLs(t *testing.T) {
 		},
 	}
 
-	_, err = appRepoInMem.GetOrCreateURLs(urls)
+	_, err = appRepoInMem.GetOrCreateURLs(context.Background(), urls)
 	require.NoError(t, err)
 
-	actualURLs, err := appRepoInMem.GetUserURLs(uint(1))
+	actualURLs, err := appRepoInMem.GetUserURLs(context.Background(), uint(1))
 	require.NoError(t, err)
 
 	expectedURLs := []*app.URL{
@@ -456,7 +457,7 @@ func TestAppRepoInmem_DeleteUserURLs(t *testing.T) {
 		},
 	}
 
-	_, err = appRepoInMem.GetOrCreateURLs(urls)
+	_, err = appRepoInMem.GetOrCreateURLs(context.Background(), urls)
 	require.NoError(t, err)
 
 	urlsForDeletion := []*app.URL{
@@ -474,7 +475,7 @@ func TestAppRepoInmem_DeleteUserURLs(t *testing.T) {
 		},
 	}
 
-	err = appRepoInMem.DeleteUserURLs(urlsForDeletion)
+	err = appRepoInMem.DeleteUserURLs(context.Background(), urlsForDeletion)
 	require.NoError(t, err)
 
 	appRepoInMem.mu.RLock()
@@ -514,14 +515,14 @@ func BenchmarkAppRepoInmem_GetOrCreateURL(b *testing.B) {
 
 		for _, url := range urls {
 			b.StartTimer()
-			_, err = appRepoInmem.GetOrCreateURL(url.ID, url.URL, url.UserID)
+			_, err = appRepoInmem.GetOrCreateURL(context.Background(), url.ID, url.URL, url.UserID)
 			b.StopTimer()
 			require.NoError(b, err)
 		}
 
 		for _, url := range urls[1 : len(urls)-2] {
 			b.StartTimer()
-			_, err = appRepoInmem.GetOrCreateURL(url.ID, url.URL, url.UserID)
+			_, err = appRepoInmem.GetOrCreateURL(context.Background(), url.ID, url.URL, url.UserID)
 			b.StopTimer()
 			require.NoError(b, err)
 		}
@@ -542,8 +543,8 @@ func BenchmarkAppRepoInmem_GetOrCreateURLs(b *testing.B) {
 		require.NoError(b, err)
 
 		b.StartTimer()
-		_, err = appRepoInmem.GetOrCreateURLs(urls)
-		_, err2 := appRepoInmem.GetOrCreateURLs(urls[1 : len(urls)-2])
+		_, err = appRepoInmem.GetOrCreateURLs(context.Background(), urls)
+		_, err2 := appRepoInmem.GetOrCreateURLs(context.Background(), urls[1:len(urls)-2])
 		b.StopTimer()
 
 		require.NoError(b, err)
@@ -564,12 +565,12 @@ func BenchmarkAppRepoInmem_CheckIDExistence(b *testing.B) {
 		appRepoInmem, err := NewAppRepoInmem("", "")
 		require.NoError(b, err)
 
-		_, err = appRepoInmem.GetOrCreateURLs(urls)
+		_, err = appRepoInmem.GetOrCreateURLs(context.Background(), urls)
 		require.NoError(b, err)
 
 		b.StartTimer()
-		_, err = appRepoInmem.CheckIDExistence(urls[3].ID)
-		_, err2 := appRepoInmem.CheckIDExistence("aaa")
+		_, err = appRepoInmem.CheckIDExistence(context.Background(), urls[3].ID)
+		_, err2 := appRepoInmem.CheckIDExistence(context.Background(), "aaa")
 		b.StopTimer()
 
 		require.NoError(b, err)
@@ -590,12 +591,12 @@ func BenchmarkAppRepoInmem_GetUserURLs(b *testing.B) {
 		appRepoInmem, err := NewAppRepoInmem("", "")
 		require.NoError(b, err)
 
-		_, err = appRepoInmem.GetOrCreateURLs(urls)
+		_, err = appRepoInmem.GetOrCreateURLs(context.Background(), urls)
 		require.NoError(b, err)
 
 		b.StartTimer()
-		_, err = appRepoInmem.GetUserURLs(urls[len(urls)/2].UserID)
-		_, err2 := appRepoInmem.GetUserURLs(uint(len(urls)) * 2)
+		_, err = appRepoInmem.GetUserURLs(context.Background(), urls[len(urls)/2].UserID)
+		_, err2 := appRepoInmem.GetUserURLs(context.Background(), uint(len(urls))*2)
 		b.StopTimer()
 
 		require.NoError(b, err)
@@ -616,12 +617,12 @@ func BenchmarkAppRepoInmem_DeleteUserURLs(b *testing.B) {
 		appRepoInmem, err := NewAppRepoInmem("", "")
 		require.NoError(b, err)
 
-		_, err = appRepoInmem.GetOrCreateURLs(urls)
+		_, err = appRepoInmem.GetOrCreateURLs(context.Background(), urls)
 		require.NoError(b, err)
 
 		b.StartTimer()
-		err = appRepoInmem.DeleteUserURLs(urls[3 : len(urls)-5])
-		err2 := appRepoInmem.DeleteUserURLs([]*app.URL{{ID: "aaa", UserID: uint(len(urls)) * 2}})
+		err = appRepoInmem.DeleteUserURLs(context.Background(), urls[3:len(urls)-5])
+		err2 := appRepoInmem.DeleteUserURLs(context.Background(), []*app.URL{{ID: "aaa", UserID: uint(len(urls)) * 2}})
 		b.StopTimer()
 
 		require.NoError(b, err)

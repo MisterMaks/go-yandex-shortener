@@ -37,6 +37,7 @@ func newExampleServer(m *mocks.MockAppUsecaseInterface) (*httptest.Server, error
 				h.ServeHTTP(w, r.WithContext(ctx))
 			})
 		},
+		TrustedSubnetMiddleware: func(h http.Handler) http.Handler { return h },
 	}
 
 	u, err := url.ParseRequestURI(ResultAddrPrefix)
@@ -64,29 +65,29 @@ func newExampleMock() *mocks.MockAppUsecaseInterface {
 
 	m := mocks.NewMockAppUsecaseInterface(ctrl)
 
-	m.EXPECT().GetOrCreateURL(TestValidURL, TestUserID).Return(&app.URL{
+	m.EXPECT().GetOrCreateURL(gomock.Any(), TestValidURL, TestUserID).Return(&app.URL{
 		ID:        TestID,
 		URL:       TestValidURL,
 		UserID:    TestUserID,
 		IsDeleted: false,
 	}, false, nil).AnyTimes()
 	m.EXPECT().GenerateShortURL(TestID).Return("http://localhost:8080/" + TestID).AnyTimes()
-	m.EXPECT().GetURL(TestID).Return(&app.URL{
+	m.EXPECT().GetURL(gomock.Any(), TestID).Return(&app.URL{
 		ID:        TestID,
 		URL:       TestValidURL,
 		UserID:    TestUserID,
 		IsDeleted: false,
 	}, nil)
-	m.EXPECT().GetOrCreateURLs([]app.RequestBatchURL{
+	m.EXPECT().GetOrCreateURLs(gomock.Any(), []app.RequestBatchURL{
 		{CorrelationID: TestID, OriginalURL: TestValidURL},
 	}, TestUserID).Return([]app.ResponseBatchURL{
 		{CorrelationID: TestID, ShortURL: "http://localhost:8080/" + TestID},
 	}, nil).AnyTimes()
-	m.EXPECT().GetUserURLs(TestUserID).Return([]app.ResponseUserURL{
+	m.EXPECT().GetUserURLs(gomock.Any(), TestUserID).Return([]app.ResponseUserURL{
 		{ShortURL: "http://localhost:8080/" + TestID, OriginalURL: TestValidURL},
 	}, nil).AnyTimes()
 	m.EXPECT().SendDeleteUserURLsInChan(TestUserID, []string{TestID}).AnyTimes()
-	m.EXPECT().Ping().Return(nil).AnyTimes()
+	m.EXPECT().Ping(gomock.Any()).Return(nil).AnyTimes()
 
 	return m
 }

@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"context"
 	"sync"
 
 	"github.com/MisterMaks/go-yandex-shortener/internal/user"
@@ -66,7 +67,7 @@ func (uri *UserRepoInmem) Close() error {
 }
 
 // CreateUser creates new user.
-func (uri *UserRepoInmem) CreateUser() (*user.User, error) {
+func (uri *UserRepoInmem) CreateUser(ctx context.Context) (*user.User, error) {
 	uri.mu.Lock()
 	defer uri.mu.Unlock()
 
@@ -82,4 +83,14 @@ func (uri *UserRepoInmem) CreateUser() (*user.User, error) {
 	}
 
 	return u, nil
+}
+
+// GetCountUsers get count users.
+func (uri *UserRepoInmem) GetCountUsers(ctx context.Context) (int, error) {
+	uri.mu.RLock()
+	defer uri.mu.RUnlock()
+
+	countUsers := len(uri.users)
+
+	return countUsers, nil
 }

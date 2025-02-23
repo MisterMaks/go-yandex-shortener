@@ -46,6 +46,18 @@ func (mr *MockAppHandlerInterfaceMockRecorder) APIDeleteUserURLs(w, r interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "APIDeleteUserURLs", reflect.TypeOf((*MockAppHandlerInterface)(nil).APIDeleteUserURLs), w, r)
 }
 
+// APIGetInternalStats mocks base method.
+func (m *MockAppHandlerInterface) APIGetInternalStats(w http.ResponseWriter, r *http.Request) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "APIGetInternalStats", w, r)
+}
+
+// APIGetInternalStats indicates an expected call of APIGetInternalStats.
+func (mr *MockAppHandlerInterfaceMockRecorder) APIGetInternalStats(w, r interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "APIGetInternalStats", reflect.TypeOf((*MockAppHandlerInterface)(nil).APIGetInternalStats), w, r)
+}
+
 // APIGetOrCreateURL mocks base method.
 func (m *MockAppHandlerInterface) APIGetOrCreateURL(w http.ResponseWriter, r *http.Request) {
 	m.ctrl.T.Helper()

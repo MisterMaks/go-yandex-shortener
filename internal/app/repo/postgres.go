@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -18,12 +19,12 @@ func NewAppRepoPostgres(db *sql.DB) (*AppRepoPostgres, error) {
 }
 
 // GetOrCreateURL insert new URL in DB or get existed URL.
-func (arp *AppRepoPostgres) GetOrCreateURL(id, rawURL string, userID uint) (*app.URL, error) {
+func (arp *AppRepoPostgres) GetOrCreateURL(ctx context.Context, id, rawURL string, userID uint) (*app.URL, error) {
 	query := `INSERT INTO url (url, url_id, user_id) 
 VALUES ($1, $2, $3) 
 ON CONFLICT (url) DO UPDATE SET url = EXCLUDED.url, user_id = COALESCE(url.user_id, EXCLUDED.user_id) 
 RETURNING url_id, user_id;`
-	err := arp.db.QueryRow(query, rawURL, id, userID).Scan(&id, &userID)
+	err := arp.db.QueryRowContext(ctx, query, rawURL, id, userID).Scan(&id, &userID)
 	if err != nil {
 		return nil, err
 	}
@@ -32,10 +33,10 @@ RETURNING url_id, user_id;`
 }
 
 // GetURL get URL from DB.
-func (arp *AppRepoPostgres) GetURL(id string) (*app.URL, error) {
+func (arp *AppRepoPostgres) GetURL(ctx context.Context, id string) (*app.URL, error) {
 	query := `SELECT url, url_id, user_id, is_deleted FROM url WHERE url_id = $1;`
 	url := &app.URL{}
-	err := arp.db.QueryRow(query, id).Scan(&url.URL, &url.ID, &url.UserID, &url.IsDeleted)
+	err := arp.db.QueryRowContext(ctx, query, id).Scan(&url.URL, &url.ID, &url.UserID, &url.IsDeleted)
 	if err != nil {
 		return nil, err
 	}
@@ -43,10 +44,10 @@ func (arp *AppRepoPostgres) GetURL(id string) (*app.URL, error) {
 }
 
 // CheckIDExistence check ID existence in DB.
-func (arp *AppRepoPostgres) CheckIDExistence(id string) (bool, error) {
+func (arp *AppRepoPostgres) CheckIDExistence(ctx context.Context, id string) (bool, error) {
 	query := `SELECT true FROM url WHERE url_id = $1;`
 	var exists bool
-	err := arp.db.QueryRow(query, id).Scan(&exists)
+	err := arp.db.QueryRowContext(ctx, query, id).Scan(&exists)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}
@@ -57,12 +58,12 @@ func (arp *AppRepoPostgres) CheckIDExistence(id string) (bool, error) {
 }
 
 // Ping ping DB.
-func (arp *AppRepoPostgres) Ping() error {
-	return arp.db.Ping()
+func (arp *AppRepoPostgres) Ping(ctx context.Context) error {
+	return arp.db.PingContext(ctx)
 }
 
 // GetOrCreateURLs insert batch URLs or get existed URLs from DB.
-func (arp *AppRepoPostgres) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error) {
+func (arp *AppRepoPostgres) GetOrCreateURLs(ctx context.Context, urls []*app.URL) ([]*app.URL, error) {
 	query := `INSERT INTO url (url, url_id, user_id) VALUES `
 	args := make([]interface{}, 0, len(urls)*3)
 	lenURLs := len(urls)
@@ -77,7 +78,7 @@ func (arp *AppRepoPostgres) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error)
 DO UPDATE SET url = EXCLUDED.url, user_id = COALESCE(url.user_id, EXCLUDED.user_id) 
 RETURNING url, url_id, user_id;`
 
-	rows, err := arp.db.Query(query, args...)
+	rows, err := arp.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -106,10 +107,10 @@ RETURNING url, url_id, user_id;`
 }
 
 // GetUserURLs get user URLs from DB.
-func (arp *AppRepoPostgres) GetUserURLs(userID uint) ([]*app.URL, error) {
+func (arp *AppRepoPostgres) GetUserURLs(ctx context.Context, userID uint) ([]*app.URL, error) {
 	query := `SELECT url, url_id, user_id, is_deleted FROM url WHERE user_id = $1;`
 
-	rows, err := arp.db.Query(query, userID)
+	rows, err := arp.db.QueryContext(ctx, query, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +139,7 @@ func (arp *AppRepoPostgres) GetUserURLs(userID uint) ([]*app.URL, error) {
 }
 
 // DeleteUserURLs delete user URLs from DB.
-func (arp *AppRepoPostgres) DeleteUserURLs(urls []*app.URL) error {
+func (arp *AppRepoPostgres) DeleteUserURLs(ctx context.Context, urls []*app.URL) error {
 	query := `UPDATE url SET is_deleted = true WHERE `
 	args := make([]interface{}, 0, len(urls)*2)
 	lenURLs := len(urls)
@@ -151,7 +152,7 @@ func (arp *AppRepoPostgres) DeleteUserURLs(urls []*app.URL) error {
 	}
 	query += ";"
 
-	_, err := arp.db.Exec(query, args...)
+	_, err := arp.db.ExecContext(ctx, query, args...)
 
 	return err
 }
@@ -159,4 +160,18 @@ func (arp *AppRepoPostgres) DeleteUserURLs(urls []*app.URL) error {
 // Close finishes working with the db.
 func (arp *AppRepoPostgres) Close() error {
 	return arp.db.Close()
+}
+
+// GetCountURLs get count URLs.
+func (arp *AppRepoPostgres) GetCountURLs(ctx context.Context) (int, error) {
+	query := `SELECT count(url) FROM url;`
+
+	var countURLs int
+
+	err := arp.db.QueryRowContext(ctx, query).Scan(&countURLs)
+	if err != nil {
+		return 0, err
+	}
+
+	return countURLs, nil
 }
