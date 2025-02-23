@@ -64,14 +64,14 @@ func parseURL(rawURL string) (string, error) {
 
 // AppRepoInterface contains the necessary functions for storage.
 type AppRepoInterface interface {
-	GetOrCreateURL(id, rawURL string, userID uint) (*app.URL, error) // get created or create short URL for request URL
-	GetURL(id string) (*app.URL, error)                              // get original URL for short URL
-	CheckIDExistence(id string) (bool, error)                        // check URL ID existence
-	GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error)             // get created or create URLs
-	GetUserURLs(userID uint) ([]*app.URL, error)                     // get user URLs
-	DeleteUserURLs(urls []*app.URL) error                            // delete urls
+	GetOrCreateURL(ctx context.Context, id, rawURL string, userID uint) (*app.URL, error) // get created or create short URL for request URL
+	GetURL(ctx context.Context, id string) (*app.URL, error)                              // get original URL for short URL
+	CheckIDExistence(ctx context.Context, id string) (bool, error)                        // check URL ID existence
+	GetOrCreateURLs(ctx context.Context, urls []*app.URL) ([]*app.URL, error)             // get created or create URLs
+	GetUserURLs(ctx context.Context, userID uint) ([]*app.URL, error)                     // get user URLs
+	DeleteUserURLs(ctx context.Context, urls []*app.URL) error                            // delete urls
 	Close() error
-	GetCountURLs() (int, error) // get count URLs
+	GetCountURLs(ctx context.Context) (int, error) // get count URLs
 }
 
 // UserUsecaseInterface contains the necessary functions for user usecase.
@@ -171,7 +171,7 @@ func NewAppUsecase(
 	return appUsecase, nil
 }
 
-func (au *AppUsecase) generateID() (string, error) {
+func (au *AppUsecase) generateID(ctx context.Context) (string, error) {
 	if au.LengthID > au.MaxLengthID {
 		return "", ErrMaxLengthIDLessLengthID
 	}
@@ -184,7 +184,7 @@ func (au *AppUsecase) generateID() (string, error) {
 		if err != nil {
 			return "", err
 		}
-		checked, err = au.AppRepo.CheckIDExistence(id)
+		checked, err = au.AppRepo.CheckIDExistence(ctx, id)
 		if err != nil {
 			return "", err
 		}
@@ -196,7 +196,7 @@ func (au *AppUsecase) generateID() (string, error) {
 
 	if checked {
 		au.LengthID++
-		return au.generateID()
+		return au.generateID(ctx)
 	}
 
 	return id, nil
@@ -205,16 +205,16 @@ func (au *AppUsecase) generateID() (string, error) {
 // GetOrCreateURL get created or create short URL for request URL.
 // Func generate unique short URL for rawURL, save and return it or return short URL (if rawURL existed).
 // Func return URL struct, true if rawURL exists or false if rawURL is new and error.
-func (au *AppUsecase) GetOrCreateURL(rawURL string, userID uint) (*app.URL, bool, error) {
+func (au *AppUsecase) GetOrCreateURL(ctx context.Context, rawURL string, userID uint) (*app.URL, bool, error) {
 	_, err := parseURL(rawURL)
 	if err != nil {
 		return nil, false, err
 	}
-	id, err := au.generateID()
+	id, err := au.generateID(ctx)
 	if err != nil {
 		return nil, false, err
 	}
-	appURL, err := au.AppRepo.GetOrCreateURL(id, rawURL, userID)
+	appURL, err := au.AppRepo.GetOrCreateURL(ctx, id, rawURL, userID)
 	if err != nil {
 		return nil, false, err
 	}
@@ -222,8 +222,8 @@ func (au *AppUsecase) GetOrCreateURL(rawURL string, userID uint) (*app.URL, bool
 }
 
 // GetURL get original URL for short URL.
-func (au *AppUsecase) GetURL(id string) (*app.URL, error) {
-	return au.AppRepo.GetURL(id)
+func (au *AppUsecase) GetURL(ctx context.Context, id string) (*app.URL, error) {
+	return au.AppRepo.GetURL(ctx, id)
 }
 
 // GenerateShortURL generate short URL.
@@ -233,24 +233,24 @@ func (au *AppUsecase) GenerateShortURL(id string) string {
 }
 
 // Ping ping database.
-func (au *AppUsecase) Ping() error {
-	return au.db.Ping()
+func (au *AppUsecase) Ping(ctx context.Context) error {
+	return au.db.PingContext(ctx)
 }
 
 // GetOrCreateURLs get created or create short URLs for request batch URLs.
 // Func generate unique short URL for every OriginalURL (or get existed short URL for OriginalURL) in requestBatchURLs,
 // save new URLs in repo and return []app.ResponseBatchURL.
-func (au *AppUsecase) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL, userID uint) ([]app.ResponseBatchURL, error) {
+func (au *AppUsecase) GetOrCreateURLs(ctx context.Context, requestBatchURLs []app.RequestBatchURL, userID uint) ([]app.ResponseBatchURL, error) {
 	urls := []*app.URL{}
 	for _, rbu := range requestBatchURLs {
-		id, err := au.generateID()
+		id, err := au.generateID(ctx)
 		if err != nil {
 			return nil, err
 		}
 		urls = append(urls, &app.URL{ID: id, URL: rbu.OriginalURL, UserID: userID})
 	}
 
-	urls, err := au.AppRepo.GetOrCreateURLs(urls)
+	urls, err := au.AppRepo.GetOrCreateURLs(ctx, urls)
 	if err != nil {
 		return nil, err
 	}
@@ -271,8 +271,8 @@ func (au *AppUsecase) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL, us
 }
 
 // GetUserURLs get short and original URLs for user.
-func (au *AppUsecase) GetUserURLs(userID uint) ([]app.ResponseUserURL, error) {
-	urls, err := au.AppRepo.GetUserURLs(userID)
+func (au *AppUsecase) GetUserURLs(ctx context.Context, userID uint) ([]app.ResponseUserURL, error) {
+	urls, err := au.AppRepo.GetUserURLs(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -306,6 +306,8 @@ func (au *AppUsecase) deleteUserURLs() {
 
 	urls := make([]*app.URL, 0, 2*len(au.deleteURLsChan))
 
+	ctx := context.Background()
+
 	for {
 		select {
 		case appURL := <-au.deleteURLsChan:
@@ -317,7 +319,7 @@ func (au *AppUsecase) deleteUserURLs() {
 			logger.Debug("Deleting user URLs",
 				zap.Any("urls", urls),
 			)
-			err := au.AppRepo.DeleteUserURLs(urls)
+			err := au.AppRepo.DeleteUserURLs(ctx, urls)
 			if err != nil {
 				logger.Error("Failed to delete user URLs",
 					zap.Error(err),
@@ -332,7 +334,7 @@ func (au *AppUsecase) deleteUserURLs() {
 			logger.Debug("Deleting user URLs",
 				zap.Any("urls", urls),
 			)
-			err := au.AppRepo.DeleteUserURLs(urls)
+			err := au.AppRepo.DeleteUserURLs(ctx, urls)
 			if err != nil {
 				logger.Error("Failed to delete user URLs",
 					zap.Error(err),
@@ -345,8 +347,8 @@ func (au *AppUsecase) deleteUserURLs() {
 }
 
 // GetInternalStats get internal stats.
-func (au *AppUsecase) GetInternalStats() (app.InternalStats, error) {
-	countURLs, err := au.AppRepo.GetCountURLs()
+func (au *AppUsecase) GetInternalStats(ctx context.Context) (app.InternalStats, error) {
+	countURLs, err := au.AppRepo.GetCountURLs(ctx)
 	if err != nil {
 		return app.InternalStats{}, err
 	}

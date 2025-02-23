@@ -38,7 +38,7 @@ func (agh *AppGRPCHandler) GetOrCreateURL(ctx context.Context, in *pb.GetOrCreat
 		return nil, status.Error(codes.Unauthenticated, "User unauthorized")
 	}
 
-	url, _, err := agh.AppUsecase.GetOrCreateURL(in.Url, userID)
+	url, _, err := agh.AppUsecase.GetOrCreateURL(ctx, in.Url, userID)
 	if err != nil {
 		handlerLogger.Warn("Bad request",
 			zap.Any(RequestKey, in),
@@ -66,7 +66,7 @@ func (agh *AppGRPCHandler) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.Pin
 
 	handlerLogger.Info("Ping DB")
 
-	err := agh.AppUsecase.Ping()
+	err := agh.AppUsecase.Ping(ctx)
 	if err != nil {
 		handlerLogger.Error("Failed to ping DB",
 			zap.Error(err),
@@ -102,7 +102,7 @@ func (agh *AppGRPCHandler) GetOrCreateURLs(ctx context.Context, in *pb.GetOrCrea
 		}
 	}
 
-	responseBatchURLs, err := agh.AppUsecase.GetOrCreateURLs(requestBatchURLs, userID)
+	responseBatchURLs, err := agh.AppUsecase.GetOrCreateURLs(ctx, requestBatchURLs, userID)
 	if err != nil {
 		handlerLogger.Warn("Bad request",
 			zap.Any(URLsKey, requestBatchURLs),
@@ -138,7 +138,7 @@ func (agh *AppGRPCHandler) GetUserURLs(ctx context.Context, in *pb.GetUserURLsRe
 		return nil, status.Error(codes.Unauthenticated, "User unauthorized")
 	}
 
-	userURLs, err := agh.AppUsecase.GetUserURLs(userID)
+	userURLs, err := agh.AppUsecase.GetUserURLs(ctx, userID)
 	if err != nil {
 		handlerLogger.Warn("Bad request", zap.Error(err))
 		return nil, status.Error(codes.Unknown, "Bad request")
@@ -181,7 +181,7 @@ func (agh *AppGRPCHandler) GetInternalStats(ctx context.Context, _ *pb.GetIntern
 
 	handlerLogger.Info("Getting internal stats")
 
-	internalStats, err := agh.AppUsecase.GetInternalStats()
+	internalStats, err := agh.AppUsecase.GetInternalStats(ctx)
 	if err != nil {
 		handlerLogger.Warn("Bad request", zap.Error(err))
 		return nil, status.Error(codes.Unknown, "Bad request")

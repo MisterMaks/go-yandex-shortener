@@ -106,18 +106,18 @@ func TestAppRepoPostgres_GetOrCreateURL(t *testing.T) {
 
 	testURL := &app.URL{ID: testID, URL: testURLStr, UserID: testUserID, IsDeleted: false}
 
-	actualURL, err := r.GetOrCreateURL(testID, testURLStr, testUserID)
+	actualURL, err := r.GetOrCreateURL(context.Background(), testID, testURLStr, testUserID)
 	require.NoError(t, err)
 	assert.Equal(t, testURL, actualURL)
 
 	user2, err := ur.CreateUser()
 	require.NoError(t, err)
 
-	actualURL, err = r.GetOrCreateURL("2", testURLStr, user2.ID)
+	actualURL, err = r.GetOrCreateURL(context.Background(), "2", testURLStr, user2.ID)
 	require.NoError(t, err)
 	assert.Equal(t, testURL, actualURL)
 
-	_, err = r.GetOrCreateURL("1", "https://test2.ru", user2.ID)
+	_, err = r.GetOrCreateURL(context.Background(), "1", "https://test2.ru", user2.ID)
 	require.Error(t, err)
 }
 
@@ -140,14 +140,14 @@ func TestAppRepoPostgres_GetURL(t *testing.T) {
 
 	testURL := &app.URL{ID: testID, URL: testURLStr, UserID: testUserID, IsDeleted: false}
 
-	_, err = r.GetOrCreateURL(testID, testURLStr, testUserID)
+	_, err = r.GetOrCreateURL(context.Background(), testID, testURLStr, testUserID)
 	require.NoError(t, err)
 
-	actualURL, err := r.GetURL(testID)
+	actualURL, err := r.GetURL(context.Background(), testID)
 	require.NoError(t, err)
 	assert.Equal(t, testURL, actualURL)
 
-	_, err = r.GetURL("2")
+	_, err = r.GetURL(context.Background(), "2")
 	require.Error(t, err)
 }
 
@@ -168,14 +168,14 @@ func TestAppRepoPostgres_CheckIDExistence(t *testing.T) {
 	testURLStr := "https://test.ru"
 	testUserID := user.ID
 
-	_, err = r.GetOrCreateURL(testID, testURLStr, testUserID)
+	_, err = r.GetOrCreateURL(context.Background(), testID, testURLStr, testUserID)
 	require.NoError(t, err)
 
-	ok, err := r.CheckIDExistence(testID)
+	ok, err := r.CheckIDExistence(context.Background(), testID)
 	require.NoError(t, err)
 	require.True(t, ok)
 
-	ok, err = r.CheckIDExistence("2")
+	ok, err = r.CheckIDExistence(context.Background(), "2")
 	require.NoError(t, err)
 	require.False(t, ok)
 }
@@ -187,13 +187,13 @@ func TestAppRepoPostgres_Ping(t *testing.T) {
 	r, err := NewAppRepoPostgres(te.DB)
 	require.NoError(t, err, "Failed to run NewAppRepoPostgres()")
 
-	err = r.Ping()
+	err = r.Ping(context.Background())
 	require.NoError(t, err)
 
 	err = te.DB.Close()
 	require.NoError(t, err)
 
-	err = r.Ping()
+	err = r.Ping(context.Background())
 	require.Error(t, err)
 }
 
@@ -222,7 +222,7 @@ func TestAppRepoPostgres_GetOrCreateURLs(t *testing.T) {
 		{ID: "3", URL: "https://test3.ru", UserID: user2.ID, IsDeleted: false},
 	}
 
-	actualURLs, err := r.GetOrCreateURLs(testURLs)
+	actualURLs, err := r.GetOrCreateURLs(context.Background(), testURLs)
 	require.NoError(t, err)
 	assert.Equal(t, testURLs, actualURLs)
 
@@ -232,7 +232,7 @@ func TestAppRepoPostgres_GetOrCreateURLs(t *testing.T) {
 		{ID: "6", URL: "https://test3.ru", UserID: user3.ID, IsDeleted: false},
 	}
 
-	actualURLs, err = r.GetOrCreateURLs(testURLs2)
+	actualURLs, err = r.GetOrCreateURLs(context.Background(), testURLs2)
 	require.NoError(t, err)
 	assert.Equal(t, testURLs, actualURLs)
 }
@@ -259,15 +259,15 @@ func TestAppRepoPostgres_GetUserURLs(t *testing.T) {
 		{ID: "3", URL: "https://test3.ru", UserID: user2.ID, IsDeleted: false},
 	}
 
-	actualURLs, err := r.GetOrCreateURLs(testURLs)
+	actualURLs, err := r.GetOrCreateURLs(context.Background(), testURLs)
 	require.NoError(t, err)
 	assert.Equal(t, testURLs, actualURLs)
 
-	userURLs, err := r.GetUserURLs(user.ID)
+	userURLs, err := r.GetUserURLs(context.Background(), user.ID)
 	require.NoError(t, err)
 	assert.Equal(t, testURLs[:2], userURLs)
 
-	user2URLs, err := r.GetUserURLs(user2.ID)
+	user2URLs, err := r.GetUserURLs(context.Background(), user2.ID)
 	require.NoError(t, err)
 	assert.Equal(t, testURLs[2:], user2URLs)
 }
@@ -290,18 +290,18 @@ func TestAppRepoPostgres_DeleteUserURLs(t *testing.T) {
 		{ID: "2", URL: "https://test2.ru", UserID: user.ID, IsDeleted: false},
 	}
 
-	actualURLs, err := r.GetOrCreateURLs(testURLs)
+	actualURLs, err := r.GetOrCreateURLs(context.Background(), testURLs)
 	require.NoError(t, err)
 	assert.Equal(t, testURLs, actualURLs)
 
-	err = r.DeleteUserURLs(testURLs[:1])
+	err = r.DeleteUserURLs(context.Background(), testURLs[:1])
 	require.NoError(t, err)
 
-	u, err := r.GetURL(testURLs[0].ID)
+	u, err := r.GetURL(context.Background(), testURLs[0].ID)
 	require.NoError(t, err)
 	assert.True(t, u.IsDeleted)
 
-	u, err = r.GetURL(testURLs[1].ID)
+	u, err = r.GetURL(context.Background(), testURLs[1].ID)
 	require.NoError(t, err)
 	assert.False(t, u.IsDeleted)
 }

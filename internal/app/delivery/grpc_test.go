@@ -45,8 +45,8 @@ func TestAppGRPCHandler_GetOrCreateURL(t *testing.T) {
 	// создаём объект-заглушку
 	m := mocks.NewMockAppUsecaseInterface(ctrl)
 
-	m.EXPECT().GetOrCreateURL(TestValidURL, TestUserID).Return(url, false, nil).AnyTimes()
-	m.EXPECT().GetOrCreateURL(gomock.Any(), gomock.Any()).Return(nil, false, ErrTestInvalidURL).AnyTimes()
+	m.EXPECT().GetOrCreateURL(gomock.Any(), TestValidURL, TestUserID).Return(url, false, nil).AnyTimes()
+	m.EXPECT().GetOrCreateURL(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, false, ErrTestInvalidURL).AnyTimes()
 
 	m.EXPECT().GenerateShortURL(gomock.Any()).DoAndReturn(
 		func(id string) string {
@@ -167,7 +167,7 @@ func TestAppGRPCHandler_Ping(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// создаём объект-заглушку
 			m := mocks.NewMockAppUsecaseInterface(ctrl)
-			m.EXPECT().Ping().Return(tt.usecasePingError)
+			m.EXPECT().Ping(gomock.Any()).Return(tt.usecasePingError)
 
 			appGRPCHandler := NewAppGRPCHandler(m)
 
@@ -282,7 +282,7 @@ func TestAppGRPCHandler_GetOrCreateURLs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := mocks.NewMockAppUsecaseInterface(ctrl)
-			m.EXPECT().GetOrCreateURLs(gomock.Any(), gomock.Any()).Return(
+			m.EXPECT().GetOrCreateURLs(gomock.Any(), gomock.Any(), gomock.Any()).Return(
 				tt.usecaseReturn.responseBatchURLs,
 				tt.usecaseReturn.err,
 			).AnyTimes()
@@ -384,7 +384,7 @@ func TestAppGRPCHandler_GetUserURLs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := mocks.NewMockAppUsecaseInterface(ctrl)
-			m.EXPECT().GetUserURLs(gomock.Any()).Return(
+			m.EXPECT().GetUserURLs(gomock.Any(), gomock.Any()).Return(
 				tt.usecaseReturn.responseUserURLs,
 				tt.usecaseReturn.err,
 			).AnyTimes()
@@ -523,7 +523,7 @@ func TestAppGRPCHandler_GetInternalStats(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := mocks.NewMockAppUsecaseInterface(ctrl)
-			m.EXPECT().GetInternalStats().Return(tt.usecaseReturn.internalStats, tt.usecaseReturn.err).AnyTimes()
+			m.EXPECT().GetInternalStats(gomock.Any()).Return(tt.usecaseReturn.internalStats, tt.usecaseReturn.err).AnyTimes()
 
 			appGRPCHandler := NewAppGRPCHandler(m)
 

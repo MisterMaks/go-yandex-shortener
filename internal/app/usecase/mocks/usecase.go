@@ -5,6 +5,7 @@
 package mocks
 
 import (
+	context "context"
 	reflect "reflect"
 
 	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
@@ -35,18 +36,18 @@ func (m *MockAppRepoInterface) EXPECT() *MockAppRepoInterfaceMockRecorder {
 }
 
 // CheckIDExistence mocks base method.
-func (m *MockAppRepoInterface) CheckIDExistence(id string) (bool, error) {
+func (m *MockAppRepoInterface) CheckIDExistence(ctx context.Context, id string) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CheckIDExistence", id)
+	ret := m.ctrl.Call(m, "CheckIDExistence", ctx, id)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CheckIDExistence indicates an expected call of CheckIDExistence.
-func (mr *MockAppRepoInterfaceMockRecorder) CheckIDExistence(id interface{}) *gomock.Call {
+func (mr *MockAppRepoInterfaceMockRecorder) CheckIDExistence(ctx, id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckIDExistence", reflect.TypeOf((*MockAppRepoInterface)(nil).CheckIDExistence), id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckIDExistence", reflect.TypeOf((*MockAppRepoInterface)(nil).CheckIDExistence), ctx, id)
 }
 
 // Close mocks base method.
@@ -64,92 +65,92 @@ func (mr *MockAppRepoInterfaceMockRecorder) Close() *gomock.Call {
 }
 
 // DeleteUserURLs mocks base method.
-func (m *MockAppRepoInterface) DeleteUserURLs(urls []*app.URL) error {
+func (m *MockAppRepoInterface) DeleteUserURLs(ctx context.Context, urls []*app.URL) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteUserURLs", urls)
+	ret := m.ctrl.Call(m, "DeleteUserURLs", ctx, urls)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DeleteUserURLs indicates an expected call of DeleteUserURLs.
-func (mr *MockAppRepoInterfaceMockRecorder) DeleteUserURLs(urls interface{}) *gomock.Call {
+func (mr *MockAppRepoInterfaceMockRecorder) DeleteUserURLs(ctx, urls interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteUserURLs", reflect.TypeOf((*MockAppRepoInterface)(nil).DeleteUserURLs), urls)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteUserURLs", reflect.TypeOf((*MockAppRepoInterface)(nil).DeleteUserURLs), ctx, urls)
 }
 
 // GetCountURLs mocks base method.
-func (m *MockAppRepoInterface) GetCountURLs() (int, error) {
+func (m *MockAppRepoInterface) GetCountURLs(ctx context.Context) (int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetCountURLs")
+	ret := m.ctrl.Call(m, "GetCountURLs", ctx)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetCountURLs indicates an expected call of GetCountURLs.
-func (mr *MockAppRepoInterfaceMockRecorder) GetCountURLs() *gomock.Call {
+func (mr *MockAppRepoInterfaceMockRecorder) GetCountURLs(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCountURLs", reflect.TypeOf((*MockAppRepoInterface)(nil).GetCountURLs))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCountURLs", reflect.TypeOf((*MockAppRepoInterface)(nil).GetCountURLs), ctx)
 }
 
 // GetOrCreateURL mocks base method.
-func (m *MockAppRepoInterface) GetOrCreateURL(id, rawURL string, userID uint) (*app.URL, error) {
+func (m *MockAppRepoInterface) GetOrCreateURL(ctx context.Context, id, rawURL string, userID uint) (*app.URL, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOrCreateURL", id, rawURL, userID)
+	ret := m.ctrl.Call(m, "GetOrCreateURL", ctx, id, rawURL, userID)
 	ret0, _ := ret[0].(*app.URL)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetOrCreateURL indicates an expected call of GetOrCreateURL.
-func (mr *MockAppRepoInterfaceMockRecorder) GetOrCreateURL(id, rawURL, userID interface{}) *gomock.Call {
+func (mr *MockAppRepoInterfaceMockRecorder) GetOrCreateURL(ctx, id, rawURL, userID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrCreateURL", reflect.TypeOf((*MockAppRepoInterface)(nil).GetOrCreateURL), id, rawURL, userID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrCreateURL", reflect.TypeOf((*MockAppRepoInterface)(nil).GetOrCreateURL), ctx, id, rawURL, userID)
 }
 
 // GetOrCreateURLs mocks base method.
-func (m *MockAppRepoInterface) GetOrCreateURLs(urls []*app.URL) ([]*app.URL, error) {
+func (m *MockAppRepoInterface) GetOrCreateURLs(ctx context.Context, urls []*app.URL) ([]*app.URL, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOrCreateURLs", urls)
+	ret := m.ctrl.Call(m, "GetOrCreateURLs", ctx, urls)
 	ret0, _ := ret[0].([]*app.URL)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetOrCreateURLs indicates an expected call of GetOrCreateURLs.
-func (mr *MockAppRepoInterfaceMockRecorder) GetOrCreateURLs(urls interface{}) *gomock.Call {
+func (mr *MockAppRepoInterfaceMockRecorder) GetOrCreateURLs(ctx, urls interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrCreateURLs", reflect.TypeOf((*MockAppRepoInterface)(nil).GetOrCreateURLs), urls)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrCreateURLs", reflect.TypeOf((*MockAppRepoInterface)(nil).GetOrCreateURLs), ctx, urls)
 }
 
 // GetURL mocks base method.
-func (m *MockAppRepoInterface) GetURL(id string) (*app.URL, error) {
+func (m *MockAppRepoInterface) GetURL(ctx context.Context, id string) (*app.URL, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetURL", id)
+	ret := m.ctrl.Call(m, "GetURL", ctx, id)
 	ret0, _ := ret[0].(*app.URL)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetURL indicates an expected call of GetURL.
-func (mr *MockAppRepoInterfaceMockRecorder) GetURL(id interface{}) *gomock.Call {
+func (mr *MockAppRepoInterfaceMockRecorder) GetURL(ctx, id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetURL", reflect.TypeOf((*MockAppRepoInterface)(nil).GetURL), id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetURL", reflect.TypeOf((*MockAppRepoInterface)(nil).GetURL), ctx, id)
 }
 
 // GetUserURLs mocks base method.
-func (m *MockAppRepoInterface) GetUserURLs(userID uint) ([]*app.URL, error) {
+func (m *MockAppRepoInterface) GetUserURLs(ctx context.Context, userID uint) ([]*app.URL, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetUserURLs", userID)
+	ret := m.ctrl.Call(m, "GetUserURLs", ctx, userID)
 	ret0, _ := ret[0].([]*app.URL)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetUserURLs indicates an expected call of GetUserURLs.
-func (mr *MockAppRepoInterfaceMockRecorder) GetUserURLs(userID interface{}) *gomock.Call {
+func (mr *MockAppRepoInterfaceMockRecorder) GetUserURLs(ctx, userID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserURLs", reflect.TypeOf((*MockAppRepoInterface)(nil).GetUserURLs), userID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserURLs", reflect.TypeOf((*MockAppRepoInterface)(nil).GetUserURLs), ctx, userID)
 }
 
 // MockUserUsecaseInterface is a mock of UserUsecaseInterface interface.

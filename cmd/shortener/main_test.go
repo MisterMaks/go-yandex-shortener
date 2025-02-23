@@ -58,18 +58,18 @@ func TestRouter(t *testing.T) {
 
 	// гарантируем, что заглушка
 	// при вызове с аргументом "Key" вернёт "Value"
-	m.EXPECT().GetOrCreateURL(TestValidURL, gomock.Any()).Return(&app.URL{
+	m.EXPECT().GetOrCreateURL(gomock.Any(), TestValidURL, gomock.Any()).Return(&app.URL{
 		ID:     TestID,
 		URL:    TestValidURL,
 		UserID: TestUserID,
 	}, false, nil).AnyTimes()
-	m.EXPECT().GetOrCreateURL(gomock.Any(), gomock.Any()).Return(nil, false, ErrTestInvalidURL).AnyTimes()
+	m.EXPECT().GetOrCreateURL(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, false, ErrTestInvalidURL).AnyTimes()
 
-	m.EXPECT().GetURL(TestID).Return(&app.URL{
+	m.EXPECT().GetURL(gomock.Any(), TestID).Return(&app.URL{
 		ID:  TestID,
 		URL: TestValidURL,
 	}, nil).AnyTimes()
-	m.EXPECT().GetURL(gomock.Any()).Return(nil, ErrTestIDNotFound).AnyTimes()
+	m.EXPECT().GetURL(gomock.Any(), gomock.Any()).Return(nil, ErrTestIDNotFound).AnyTimes()
 
 	m.EXPECT().GenerateShortURL(gomock.Any()).DoAndReturn(
 		func(id string) string {

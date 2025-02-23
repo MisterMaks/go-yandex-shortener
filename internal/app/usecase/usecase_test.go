@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"testing"
@@ -77,7 +78,7 @@ func TestNewAppUsecase(t *testing.T) {
 	// создаём объект-заглушку
 	m := mocks.NewMockAppRepoInterface(ctrl)
 
-	m.EXPECT().DeleteUserURLs(gomock.Any()).Return(nil).AnyTimes()
+	m.EXPECT().DeleteUserURLs(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 	type args struct {
 		resultAddrPrefix              string
@@ -287,12 +288,12 @@ func TestAppUsecase_GetOrCreateURL(t *testing.T) {
 	// создаём объект-заглушку
 	m := mocks.NewMockAppRepoInterface(ctrl)
 
-	m.EXPECT().GetOrCreateURL(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_, rawURL string, userID uint) (*app.URL, error) {
+	m.EXPECT().GetOrCreateURL(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, _, rawURL string, userID uint) (*app.URL, error) {
 		url := &app.URL{ID: TestURLID, URL: rawURL, UserID: userID}
 		return url, nil
 	}).AnyTimes()
-	m.EXPECT().CheckIDExistence(TestURLID).Return(true, nil).AnyTimes()
-	m.EXPECT().CheckIDExistence(gomock.Any()).Return(false, nil).AnyTimes()
+	m.EXPECT().CheckIDExistence(gomock.Any(), TestURLID).Return(true, nil).AnyTimes()
+	m.EXPECT().CheckIDExistence(gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -302,7 +303,7 @@ func TestAppUsecase_GetOrCreateURL(t *testing.T) {
 				LengthID:                      tt.fields.lengthID,
 				MaxLengthID:                   tt.fields.maxLengthID,
 			}
-			url, _, err := au.GetOrCreateURL(tt.args.rawURL, tt.args.userID)
+			url, _, err := au.GetOrCreateURL(context.Background(), tt.args.rawURL, tt.args.userID)
 			assert.ErrorIs(t, err, tt.want.err)
 			assert.Equal(t, tt.want.url, url)
 		})
@@ -371,11 +372,11 @@ func TestAppUsecase_GetURL(t *testing.T) {
 	// создаём объект-заглушку
 	m := mocks.NewMockAppRepoInterface(ctrl)
 
-	m.EXPECT().GetURL(TestURLID).Return(&app.URL{
+	m.EXPECT().GetURL(gomock.Any(), TestURLID).Return(&app.URL{
 		ID:  TestURLID,
 		URL: TestURL,
 	}, nil).AnyTimes()
-	m.EXPECT().GetURL(gomock.Any()).Return(nil, ErrTestIDNotFound)
+	m.EXPECT().GetURL(gomock.Any(), gomock.Any()).Return(nil, ErrTestIDNotFound)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -385,7 +386,7 @@ func TestAppUsecase_GetURL(t *testing.T) {
 				LengthID:                      tt.fields.lengthID,
 				MaxLengthID:                   tt.fields.maxLengthID,
 			}
-			url, err := au.GetURL(tt.args.id)
+			url, err := au.GetURL(context.Background(), tt.args.id)
 			assert.ErrorIs(t, err, tt.want.err)
 			assert.Equal(t, tt.want.url, url)
 		})
@@ -472,11 +473,11 @@ func TestAppUsecase_GetOrCreateURLs(t *testing.T) {
 
 	// создаём объект-заглушку
 	m := mocks.NewMockAppRepoInterface(ctrl)
-	m.EXPECT().GetOrCreateURLs(gomock.Any()).Return([]*app.URL{
+	m.EXPECT().GetOrCreateURLs(gomock.Any(), gomock.Any()).Return([]*app.URL{
 		{ID: "11", URL: "https://test.ru", UserID: testUserID, IsDeleted: false},
 		{ID: "22", URL: "https://test2.ru", UserID: testUserID, IsDeleted: false},
 	}, nil).AnyTimes()
-	m.EXPECT().CheckIDExistence(gomock.Any()).Return(false, nil).AnyTimes()
+	m.EXPECT().CheckIDExistence(gomock.Any(), gomock.Any()).Return(false, nil).AnyTimes()
 
 	au := &AppUsecase{
 		AppRepo:                       m,
@@ -486,7 +487,7 @@ func TestAppUsecase_GetOrCreateURLs(t *testing.T) {
 		BaseURL:                       "http://example.com/",
 	}
 
-	urls, err := au.GetOrCreateURLs(testRequestBatchURLs, testUserID)
+	urls, err := au.GetOrCreateURLs(context.Background(), testRequestBatchURLs, testUserID)
 
 	require.NoError(t, err)
 	assert.Equal(t, []app.ResponseBatchURL{
@@ -504,7 +505,7 @@ func TestAppUsecase_GetUserURLs(t *testing.T) {
 
 	// создаём объект-заглушку
 	m := mocks.NewMockAppRepoInterface(ctrl)
-	m.EXPECT().GetUserURLs(testUserID).Return([]*app.URL{
+	m.EXPECT().GetUserURLs(gomock.Any(), testUserID).Return([]*app.URL{
 		{ID: "11", URL: "https://test.ru", UserID: testUserID, IsDeleted: false},
 		{ID: "22", URL: "https://test2.ru", UserID: testUserID, IsDeleted: false},
 	}, nil).AnyTimes()
@@ -517,7 +518,7 @@ func TestAppUsecase_GetUserURLs(t *testing.T) {
 		BaseURL:                       "http://example.com/",
 	}
 
-	urls, err := au.GetUserURLs(testUserID)
+	urls, err := au.GetUserURLs(context.Background(), testUserID)
 
 	require.NoError(t, err)
 	assert.Equal(t, []app.ResponseUserURL{
@@ -568,7 +569,7 @@ func TestAppUsecase_deleteUserURLs(t *testing.T) {
 
 	// создаём объект-заглушку
 	m := mocks.NewMockAppRepoInterface(ctrl)
-	m.EXPECT().DeleteUserURLs([]*app.URL{testURL}).Return(nil).AnyTimes()
+	m.EXPECT().DeleteUserURLs(gomock.Any(), []*app.URL{testURL}).Return(nil).AnyTimes()
 
 	au := &AppUsecase{
 		AppRepo:                       m,

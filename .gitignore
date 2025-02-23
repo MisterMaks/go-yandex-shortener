@@ -22,6 +22,8 @@ vendor/
 .idea
 .vscode
 
+.DS_Store
+
 # Debug scripts
 cmd/client/
 

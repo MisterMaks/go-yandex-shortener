@@ -5,6 +5,7 @@
 package mocks
 
 import (
+	context "context"
 	reflect "reflect"
 
 	app "github.com/MisterMaks/go-yandex-shortener/internal/app"
@@ -49,24 +50,24 @@ func (mr *MockAppUsecaseInterfaceMockRecorder) GenerateShortURL(id interface{}) 
 }
 
 // GetInternalStats mocks base method.
-func (m *MockAppUsecaseInterface) GetInternalStats() (app.InternalStats, error) {
+func (m *MockAppUsecaseInterface) GetInternalStats(ctx context.Context) (app.InternalStats, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetInternalStats")
+	ret := m.ctrl.Call(m, "GetInternalStats", ctx)
 	ret0, _ := ret[0].(app.InternalStats)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetInternalStats indicates an expected call of GetInternalStats.
-func (mr *MockAppUsecaseInterfaceMockRecorder) GetInternalStats() *gomock.Call {
+func (mr *MockAppUsecaseInterfaceMockRecorder) GetInternalStats(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInternalStats", reflect.TypeOf((*MockAppUsecaseInterface)(nil).GetInternalStats))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInternalStats", reflect.TypeOf((*MockAppUsecaseInterface)(nil).GetInternalStats), ctx)
 }
 
 // GetOrCreateURL mocks base method.
-func (m *MockAppUsecaseInterface) GetOrCreateURL(rawURL string, userID uint) (*app.URL, bool, error) {
+func (m *MockAppUsecaseInterface) GetOrCreateURL(ctx context.Context, rawURL string, userID uint) (*app.URL, bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOrCreateURL", rawURL, userID)
+	ret := m.ctrl.Call(m, "GetOrCreateURL", ctx, rawURL, userID)
 	ret0, _ := ret[0].(*app.URL)
 	ret1, _ := ret[1].(bool)
 	ret2, _ := ret[2].(error)
@@ -74,68 +75,68 @@ func (m *MockAppUsecaseInterface) GetOrCreateURL(rawURL string, userID uint) (*a
 }
 
 // GetOrCreateURL indicates an expected call of GetOrCreateURL.
-func (mr *MockAppUsecaseInterfaceMockRecorder) GetOrCreateURL(rawURL, userID interface{}) *gomock.Call {
+func (mr *MockAppUsecaseInterfaceMockRecorder) GetOrCreateURL(ctx, rawURL, userID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrCreateURL", reflect.TypeOf((*MockAppUsecaseInterface)(nil).GetOrCreateURL), rawURL, userID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrCreateURL", reflect.TypeOf((*MockAppUsecaseInterface)(nil).GetOrCreateURL), ctx, rawURL, userID)
 }
 
 // GetOrCreateURLs mocks base method.
-func (m *MockAppUsecaseInterface) GetOrCreateURLs(requestBatchURLs []app.RequestBatchURL, userID uint) ([]app.ResponseBatchURL, error) {
+func (m *MockAppUsecaseInterface) GetOrCreateURLs(ctx context.Context, requestBatchURLs []app.RequestBatchURL, userID uint) ([]app.ResponseBatchURL, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOrCreateURLs", requestBatchURLs, userID)
+	ret := m.ctrl.Call(m, "GetOrCreateURLs", ctx, requestBatchURLs, userID)
 	ret0, _ := ret[0].([]app.ResponseBatchURL)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetOrCreateURLs indicates an expected call of GetOrCreateURLs.
-func (mr *MockAppUsecaseInterfaceMockRecorder) GetOrCreateURLs(requestBatchURLs, userID interface{}) *gomock.Call {
+func (mr *MockAppUsecaseInterfaceMockRecorder) GetOrCreateURLs(ctx, requestBatchURLs, userID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrCreateURLs", reflect.TypeOf((*MockAppUsecaseInterface)(nil).GetOrCreateURLs), requestBatchURLs, userID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrCreateURLs", reflect.TypeOf((*MockAppUsecaseInterface)(nil).GetOrCreateURLs), ctx, requestBatchURLs, userID)
 }
 
 // GetURL mocks base method.
-func (m *MockAppUsecaseInterface) GetURL(id string) (*app.URL, error) {
+func (m *MockAppUsecaseInterface) GetURL(ctx context.Context, id string) (*app.URL, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetURL", id)
+	ret := m.ctrl.Call(m, "GetURL", ctx, id)
 	ret0, _ := ret[0].(*app.URL)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetURL indicates an expected call of GetURL.
-func (mr *MockAppUsecaseInterfaceMockRecorder) GetURL(id interface{}) *gomock.Call {
+func (mr *MockAppUsecaseInterfaceMockRecorder) GetURL(ctx, id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetURL", reflect.TypeOf((*MockAppUsecaseInterface)(nil).GetURL), id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetURL", reflect.TypeOf((*MockAppUsecaseInterface)(nil).GetURL), ctx, id)
 }
 
 // GetUserURLs mocks base method.
-func (m *MockAppUsecaseInterface) GetUserURLs(userID uint) ([]app.ResponseUserURL, error) {
+func (m *MockAppUsecaseInterface) GetUserURLs(ctx context.Context, userID uint) ([]app.ResponseUserURL, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetUserURLs", userID)
+	ret := m.ctrl.Call(m, "GetUserURLs", ctx, userID)
 	ret0, _ := ret[0].([]app.ResponseUserURL)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetUserURLs indicates an expected call of GetUserURLs.
-func (mr *MockAppUsecaseInterfaceMockRecorder) GetUserURLs(userID interface{}) *gomock.Call {
+func (mr *MockAppUsecaseInterfaceMockRecorder) GetUserURLs(ctx, userID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserURLs", reflect.TypeOf((*MockAppUsecaseInterface)(nil).GetUserURLs), userID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserURLs", reflect.TypeOf((*MockAppUsecaseInterface)(nil).GetUserURLs), ctx, userID)
 }
 
 // Ping mocks base method.
-func (m *MockAppUsecaseInterface) Ping() error {
+func (m *MockAppUsecaseInterface) Ping(ctx context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Ping")
+	ret := m.ctrl.Call(m, "Ping", ctx)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Ping indicates an expected call of Ping.
-func (mr *MockAppUsecaseInterfaceMockRecorder) Ping() *gomock.Call {
+func (mr *MockAppUsecaseInterfaceMockRecorder) Ping(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ping", reflect.TypeOf((*MockAppUsecaseInterface)(nil).Ping))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ping", reflect.TypeOf((*MockAppUsecaseInterface)(nil).Ping), ctx)
 }
 
 // SendDeleteUserURLsInChan mocks base method.
